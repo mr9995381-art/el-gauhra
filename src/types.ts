@@ -13,12 +13,6 @@ export type EducationalGrade =
   | 'secondary_3';
 
 export const GRADE_LABELS: Record<EducationalGrade, string> = {
-  primary_1: 'الصف الأول الابتدائي',
-  primary_2: 'الصف الثاني الابتدائي',
-  primary_3: 'الصف الثالث الابتدائي',
-  primary_4: 'الصف الرابع الابتدائي',
-  primary_5: 'الصف الخامس الابتدائي',
-  primary_6: 'الصف السادس الابتدائي',
   prep_1: 'الصف الأول الإعدادي',
   prep_2: 'الصف الثاني الإعدادي',
   prep_3: 'الصف الثالث الإعدادي',
