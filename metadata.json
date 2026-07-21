@@ -1,0 +1,6 @@
+{
+  "name": "Mr. Abdullah Sayed English Platform",
+  "description": "منصة تعليمية احترافية لتدريس اللغة الإنجليزية لجميع المراحل الدراسية مع مستر عبدالله سيد. كورسات، اختبارات تفاعلية، ومتابعة مستمرة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
