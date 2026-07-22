@@ -21,7 +21,7 @@ export default function Footer({ setCurrentView }: FooterProps) {
               <span className="font-bold text-xl text-white">منصة مستر عبدالله سيد</span>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed mb-6">
-              المنصة التعليمية الأولى والوحيدة المتكاملة لتدريس اللغة الإنجليزية لجميع المراحل الدراسية (الابتدائية، الإعدادية، والثانوية). نسعى دائمًا لتقديم أفضل مستويات التعليم بأساليب تفاعلية حديثة واختبارات متطورة.
+              المنصة التعليمية الأولى والوحيدة المتكاملة لتدريس اللغة الإنجليزية للمراحل الإعدادية والثانوية. نسعى دائمًا لتقديم أفضل مستويات التعليم بأساليب تفاعلية حديثة واختبارات متطورة.
             </p>
             {/* Warning Message inside footer */}
             <div className="p-4 bg-slate-800/80 border border-slate-700/60 rounded-xl text-xs text-amber-400 leading-relaxed">

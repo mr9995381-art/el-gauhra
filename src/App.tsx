@@ -52,6 +52,22 @@ export default function App() {
     
     // Seed requested lesson for Prep 1
     seedInitialDataIfEmpty();
+
+    // Check URL hash on initial load
+    const hash = window.location.hash.replace('#', '');
+    if (hash && ['home', 'courses', 'about', 'contact', 'faq', 'privacy', 'terms', 'student_dashboard', 'master_dashboard'].includes(hash)) {
+      setCurrentView(hash);
+    }
+
+    const handleHashChange = () => {
+      const newHash = window.location.hash.replace('#', '');
+      if (newHash && ['home', 'courses', 'about', 'contact', 'faq', 'privacy', 'terms', 'student_dashboard', 'master_dashboard'].includes(newHash)) {
+        setCurrentView(newHash);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   // Listen for user auth state
@@ -187,7 +203,13 @@ export default function App() {
 
   // Safe navigation wrapper that checks if page is private
   const navigateTo = (view: string) => {
-    if (view === 'student_dashboard' || view === 'master_dashboard') {
+    if (view === 'master_dashboard') {
+      if (!userProfile || userProfile.role !== 'master') {
+        setMasterModalOpen(true);
+        return;
+      }
+    }
+    if (view === 'student_dashboard') {
       if (!userProfile) {
         addToast('يرجى تسجيل الدخول أولاً للوصول إلى هذه الصفحة.', 'info');
         setAuthModalOpen(true);
@@ -195,6 +217,7 @@ export default function App() {
       }
     }
     setCurrentView(view);
+    window.location.hash = view;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -245,6 +268,7 @@ export default function App() {
                   userProfile={userProfile}
                   onOpenAuth={() => setAuthModalOpen(true)}
                   setCurrentView={navigateTo}
+                  onOpenMasterAccess={() => setMasterModalOpen(true)}
                 />
               )}
               {currentView === 'about' && <AboutView />}
@@ -286,8 +310,24 @@ export default function App() {
                   addToast={addToast}
                 />
               )}
-              {currentView === 'master_dashboard' && userProfile && userProfile.role === 'master' && (
-                <MasterDashboard userProfile={userProfile} addToast={addToast} />
+              {currentView === 'master_dashboard' && (
+                userProfile && userProfile.role === 'master' ? (
+                  <MasterDashboard userProfile={userProfile} addToast={addToast} />
+                ) : (
+                  <div className="py-20 text-center max-w-lg mx-auto px-4" dir="rtl">
+                    <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Lock className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mb-2">لوحة تحكم مستر عبدالله سيد</h2>
+                    <p className="text-slate-500 text-sm mb-6">يرجى إدخال رمز القفل الخاص بالإدارة لمتابعة الدخول وإدارة المنصة.</p>
+                    <button
+                      onClick={() => setMasterModalOpen(true)}
+                      className="px-6 py-3 bg-slate-900 hover:bg-black text-amber-400 font-extrabold rounded-full shadow-lg transition-all cursor-pointer"
+                    >
+                      إدخال كلمة المرور (2026)
+                    </button>
+                  </div>
+                )
               )}
             </motion.div>
           </AnimatePresence>
@@ -309,8 +349,6 @@ export default function App() {
           <span>تواصل واتساب</span>
         </a>
       </div>
-
-      {/* Removed floating master gate button */}
 
       {/* Footer component */}
       <Footer setCurrentView={navigateTo} />
@@ -341,7 +379,10 @@ export default function App() {
             isOpen={masterModalOpen}
             onClose={() => setMasterModalOpen(false)}
             userProfile={userProfile}
-            onSuccess={() => {
+            onSuccess={(updatedProfile) => {
+              if (updatedProfile) {
+                setUserProfile(updatedProfile);
+              }
               setCurrentView('master_dashboard');
             }}
             addToast={addToast}

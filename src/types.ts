@@ -1,10 +1,4 @@
 export type EducationalGrade =
-  | 'primary_1'
-  | 'primary_2'
-  | 'primary_3'
-  | 'primary_4'
-  | 'primary_5'
-  | 'primary_6'
   | 'prep_1'
   | 'prep_2'
   | 'prep_3'
@@ -26,12 +20,27 @@ export interface UserProfile {
   name: string;
   email: string;
   phone: string;
+  parentPhone?: string;
   grade: EducationalGrade;
   role: 'student' | 'master';
+  subscriptionStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'expired';
   subscriptionExpiresAt: string | null; // ISO string
   activeCodeUsed: string | null;
   deviceSessionId: string | null;
   createdAt: string;
+}
+
+export interface SubscriptionRequest {
+  id: string;
+  studentUid: string;
+  studentName: string;
+  studentPhone: string;
+  parentPhone?: string;
+  grade: EducationalGrade;
+  status: 'pending' | 'approved' | 'rejected';
+  requestedAt: string;
+  approvedAt?: string;
+  notes?: string;
 }
 
 export interface Course {

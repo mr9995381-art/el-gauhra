@@ -25,7 +25,8 @@ import {
   SubscriptionCode,
   UserProfile,
   Attachment,
-  Announcement
+  Announcement,
+  SubscriptionRequest
 } from '../types';
 import {
   LayoutDashboard,
@@ -48,7 +49,13 @@ import {
   ChevronDown,
   ChevronUp,
   Award,
-  Paperclip
+  Paperclip,
+  Zap,
+  Clock,
+  XCircle,
+  UserCheck,
+  Phone,
+  ShieldCheck
 } from 'lucide-react';
 
 interface MasterDashboardProps {
@@ -58,8 +65,8 @@ interface MasterDashboardProps {
 
 export default function MasterDashboard({ userProfile, addToast }: MasterDashboardProps) {
   // Navigation
-  // 'stats' | 'courses' | 'codes' | 'students' | 'announcements'
-  const [tab, setTab] = useState<'stats' | 'courses' | 'codes' | 'students' | 'announcements'>('stats');
+  // 'stats' | 'courses' | 'codes' | 'students' | 'requests' | 'announcements'
+  const [tab, setTab] = useState<'stats' | 'courses' | 'codes' | 'students' | 'requests' | 'announcements'>('stats');
 
   // Loaders
   const [loading, setLoading] = useState(false);
@@ -80,6 +87,8 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
   const [students, setStudents] = useState<UserProfile[]>([]);
   const [codes, setCodes] = useState<SubscriptionCode[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [subscriptionRequests, setSubscriptionRequests] = useState<SubscriptionRequest[]>([]);
+  const [reqStatusFilter, setReqStatusFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
 
   // Selection states for hierarchies
   const [selectedCourseId, setSelectedCourseId] = useState<string>('');
@@ -172,7 +181,79 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
     fetchStudents();
     fetchCodes();
     fetchAnnouncements();
+    fetchSubscriptionRequests();
   }, []);
+
+  const fetchSubscriptionRequests = async () => {
+    try {
+      const snap = await getDocs(query(collection(db, 'subscriptionRequests'), orderBy('requestedAt', 'desc')));
+      const list: SubscriptionRequest[] = [];
+      snap.forEach((d) => {
+        list.push({ id: d.id, ...d.data() } as SubscriptionRequest);
+      });
+      setSubscriptionRequests(list);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleApproveSubscriptionRequest = async (req: SubscriptionRequest) => {
+    try {
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      await updateDoc(doc(db, 'subscriptionRequests', req.id), {
+        status: 'approved',
+        approvedAt: now.toISOString(),
+      });
+
+      await updateDoc(doc(db, 'users', req.studentUid), {
+        subscriptionStatus: 'approved',
+        subscriptionExpiresAt: expiresAt,
+      });
+
+      addToast(`تم قبول طلب الطالب ${req.studentName} وتفعيل اشتراكه لمدة شهر بنجاح!`, 'success');
+      fetchSubscriptionRequests();
+      fetchStudents();
+      fetchStats();
+    } catch (err) {
+      console.error(err);
+      addToast('حدث خطأ أثناء الموافقة على الطلب.', 'error');
+    }
+  };
+
+  const handleRejectSubscriptionRequest = async (req: SubscriptionRequest) => {
+    try {
+      await updateDoc(doc(db, 'subscriptionRequests', req.id), {
+        status: 'rejected',
+      });
+
+      await updateDoc(doc(db, 'users', req.studentUid), {
+        subscriptionStatus: 'rejected',
+      });
+
+      addToast(`تم رفض طلب اشتراك الطالب ${req.studentName}.`, 'info');
+      fetchSubscriptionRequests();
+      fetchStudents();
+      fetchStats();
+    } catch (err) {
+      console.error(err);
+      addToast('حدث خطأ أثناء رفض الطلب.', 'error');
+    }
+  };
+
+  const handleUpdateStudentGrade = async (studentUid: string, newGrade: EducationalGrade) => {
+    try {
+      await updateDoc(doc(db, 'users', studentUid), {
+        grade: newGrade,
+      });
+      addToast('تم تحديث الصف الدراسي للطالب بنجاح.', 'success');
+      fetchStudents();
+    } catch (err) {
+      console.error(err);
+      addToast('حدث خطأ أثناء تحديث الصف الدراسي.', 'error');
+    }
+  };
 
   // Fetch all databases
   const fetchStats = async () => {
@@ -694,6 +775,37 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
     }
   };
 
+  // Quick Activate Student Subscription for N days
+  const quickActivateStudentSub = async (student: UserProfile, days: number) => {
+    try {
+      let expiresAt: string | null = null;
+      if (days > 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + days);
+        expiresAt = d.toISOString();
+      }
+
+      await updateDoc(doc(db, 'users', student.uid), {
+        subscriptionExpiresAt: expiresAt,
+      });
+
+      if (days > 0) {
+        addToast(`تم تفعيل اشتراك الطالب ${student.name} بنجاح لمدة ${days} يوماً! 🎉`, 'success');
+      } else {
+        addToast(`تم إلغاء تفعيل اشتراك الطالب ${student.name}.`, 'info');
+      }
+
+      if (editingStudent && editingStudent.uid === student.uid) {
+        setEditingStudent(null);
+      }
+      fetchStudents();
+      fetchStats();
+    } catch (err) {
+      console.error(err);
+      addToast('حدث خطأ أثناء تفعيل الاشتراك.', 'error');
+    }
+  };
+
   return (
     <div className="bg-slate-50 dark:bg-slate-900 min-h-screen font-sans" dir="rtl">
       {/* Container wrapper */}
@@ -760,6 +872,22 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
           >
             <Users className="w-4 h-4" />
             إدارة الطلاب المشتركين
+          </button>
+          <button
+            onClick={() => setTab('requests')}
+            className={`relative flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+              tab === 'requests'
+                ? 'bg-amber-500 text-white shadow-md'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/40'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            <span>طلبات الاشتراك</span>
+            {subscriptionRequests.filter((r) => r.status === 'pending').length > 0 && (
+              <span className="px-2 py-0.5 text-[10px] font-black bg-rose-600 text-white rounded-full animate-pulse">
+                {subscriptionRequests.filter((r) => r.status === 'pending').length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setTab('announcements')}
@@ -919,7 +1047,7 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
                   <div className="p-8 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center space-y-2">
                     <AlertCircle className="w-8 h-8 text-slate-400 mx-auto" />
                     <p className="text-sm font-bold text-slate-600 dark:text-slate-400">لا توجد كورسات مضافة لهذا صف حالياً.</p>
-                    <p className="text-xs text-slate-400">يمكنك تهيئة البيانات الافتراضية من لوحة الإحصائيات أو استخدام النموذج على اليسار لإضافة أول كورس.</p>
+                    <p className="text-xs text-slate-400">يمكنك استخدام النموذج على اليسار لإضافة أول كورس دراسي جديد مع وحداته ودروسه التفاعلية.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -1645,11 +1773,11 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
                     <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 text-slate-500">
                       <tr>
                         <th className="p-4 font-bold">اسم الطالب</th>
-                        <th className="p-4 font-bold">البريد الإلكتروني</th>
-                        <th className="p-4 font-bold">الهاتف</th>
+                        <th className="p-4 font-bold">هاتف الطالب</th>
+                        <th className="p-4 font-bold">هاتف ولي الأمر</th>
                         <th className="p-4 font-bold">الصف الدراسي</th>
                         <th className="p-4 font-bold text-center">انتهاء الاشتراك</th>
-                        <th className="p-4 font-bold text-center">الوضعية</th>
+                        <th className="p-4 font-bold text-center">حالة الحساب</th>
                         <th className="p-4 font-bold text-center">إجراءات</th>
                       </tr>
                     </thead>
@@ -1658,18 +1786,48 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
                         .filter(
                           (s) =>
                             s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
-                            s.phone.includes(studentSearch)
+                            s.phone.includes(studentSearch) ||
+                            (s.parentPhone && s.parentPhone.includes(studentSearch))
                         )
                         .map((s) => {
                           const hasSub =
-                            s.subscriptionExpiresAt &&
-                            new Date(s.subscriptionExpiresAt).getTime() > Date.now();
+                            s.subscriptionStatus === 'approved' ||
+                            (s.subscriptionExpiresAt &&
+                              new Date(s.subscriptionExpiresAt).getTime() > Date.now());
                           return (
                             <tr key={s.uid} className="hover:bg-slate-50 dark:hover:bg-slate-900/20">
-                              <td className="p-4 font-bold text-slate-800 dark:text-slate-100">{s.name}</td>
-                              <td className="p-4 font-mono">{s.email}</td>
-                              <td className="p-4 select-all">{s.phone}</td>
-                              <td className="p-4 font-bold">{GRADE_LABELS[s.grade]}</td>
+                              <td className="p-4 font-bold text-slate-800 dark:text-slate-100">
+                                <div>{s.name}</div>
+                                <div className="text-[10px] text-slate-400 font-mono font-normal">{s.email}</div>
+                              </td>
+                              <td className="p-4 select-all font-mono">
+                                <a href={`https://wa.me/2${s.phone}`} target="_blank" referrerPolicy="no-referrer" className="text-emerald-600 hover:underline">
+                                  {s.phone}
+                                </a>
+                              </td>
+                              <td className="p-4 select-all font-mono text-slate-500">
+                                {s.parentPhone ? (
+                                  <a href={`https://wa.me/2${s.parentPhone}`} target="_blank" referrerPolicy="no-referrer" className="text-emerald-600 hover:underline">
+                                    {s.parentPhone}
+                                  </a>
+                                ) : (
+                                  'غير مسجل'
+                                )}
+                              </td>
+                              <td className="p-4">
+                                <select
+                                  value={s.grade}
+                                  onChange={(e) => handleUpdateStudentGrade(s.uid, e.target.value as EducationalGrade)}
+                                  className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 outline-none cursor-pointer"
+                                  title="تغيير صف الطالب"
+                                >
+                                  {Object.entries(GRADE_LABELS).map(([gKey, gLabel]) => (
+                                    <option key={gKey} value={gKey}>
+                                      {gLabel}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
                               <td className="p-4 text-center font-mono text-slate-500 text-xs">
                                 {s.subscriptionExpiresAt
                                   ? new Date(s.subscriptionExpiresAt).toLocaleDateString('ar-EG')
@@ -1679,68 +1837,345 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
                                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
                                   hasSub
                                     ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20'
+                                    : s.subscriptionStatus === 'pending'
+                                    ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/20'
                                     : 'bg-rose-50 text-rose-500 dark:bg-rose-950/20'
                                 }`}>
-                                  {hasSub ? 'نشط' : 'غير فعال'}
+                                  {hasSub ? 'مقبول ومفعل' : s.subscriptionStatus === 'pending' ? 'قيد المراجعة' : 'غير مفعل'}
                                 </span>
                               </td>
-                              <td className="p-4 text-center flex items-center justify-center gap-2">
-                                <button
-                                  onClick={() => {
-                                    setEditingStudent(s);
-                                    setNewSubExpiry(
-                                      s.subscriptionExpiresAt
-                                        ? s.subscriptionExpiresAt.substring(0, 10)
-                                        : ''
-                                    );
-                                  }}
-                                  className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50/50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                                >
-                                  <Edit className="w-3.5 h-3.5" />
-                                  تعديل الاشتراك
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                               <td className="p-4 text-center">
+                                 <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                   {!hasSub ? (
+                                     <button
+                                       onClick={() => quickActivateStudentSub(s, 30)}
+                                       className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow cursor-pointer"
+                                       title="تفعيل سريع لمدة 30 يوم"
+                                     >
+                                       <Zap className="w-3.5 h-3.5" />
+                                       تفعيل شهر
+                                     </button>
+                                   ) : (
+                                     <button
+                                       onClick={() => quickActivateStudentSub(s, 0)}
+                                       className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                       title="إلغاء التفعيل"
+                                     >
+                                       إلغاء الاشتراك
+                                     </button>
+                                   )}
+                                   <button
+                                     onClick={() => {
+                                       setEditingStudent(s);
+                                       setNewSubExpiry(
+                                         s.subscriptionExpiresAt
+                                           ? s.subscriptionExpiresAt.substring(0, 10)
+                                           : ''
+                                       );
+                                     }}
+                                     className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                   >
+                                     <Edit className="w-3.5 h-3.5" />
+                                     خيارات أخرى
+                                   </button>
+                                 </div>
+                               </td>
+                             </tr>
+                           );
+                         })}
+                     </tbody>
+                   </table>
+                 </div>
+               </div>
+             )}
 
-            {/* Edit student subscription Modal */}
-            {editingStudent && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border p-6 w-full max-w-md space-y-4">
-                  <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">تعديل اشتراك الطالب: {editingStudent.name}</h3>
-                  <form onSubmit={handleUpdateStudentSub} className="space-y-4 text-right">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1">حدد تاريخ وتوقيت انتهاء الاشتراك الجديد</label>
-                      <input
-                        type="date"
-                        value={newSubExpiry}
-                        onChange={(e) => setNewSubExpiry(e.target.value)}
-                        className="w-full px-3 py-2 border rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm outline-none"
-                      />
+             {/* Edit student subscription Modal */}
+             {editingStudent && (
+               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                 <div className="bg-white dark:bg-slate-900 rounded-2xl border p-6 w-full max-w-md space-y-4">
+                   <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">تفعيل وتعديل اشتراك: {editingStudent.name}</h3>
+                   
+                   {/* Quick preset activation buttons */}
+                   <div className="space-y-2">
+                     <label className="block text-xs font-bold text-slate-500">تفعيل سريع بضغطة زر:</label>
+                     <div className="grid grid-cols-3 gap-2">
+                       <button
+                         type="button"
+                         onClick={() => quickActivateStudentSub(editingStudent, 30)}
+                         className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer"
+                       >
+                         <span>⚡ شهر كامل</span>
+                         <span className="text-[10px] text-emerald-600 font-normal">(30 يوم)</span>
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => quickActivateStudentSub(editingStudent, 120)}
+                         className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer"
+                       >
+                         <span>⚡ ترم دراسي</span>
+                         <span className="text-[10px] text-blue-600 font-normal">(120 يوم)</span>
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => quickActivateStudentSub(editingStudent, 365)}
+                         className="px-3 py-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer"
+                       >
+                         <span>⚡ سنة دراسية</span>
+                         <span className="text-[10px] text-purple-600 font-normal">(365 يوم)</span>
+                       </button>
+                     </div>
+                   </div>
+
+                   <hr className="border-slate-100 dark:border-slate-800 my-2" />
+
+                   <form onSubmit={handleUpdateStudentSub} className="space-y-4 text-right">
+                     <div>
+                       <label className="block text-xs font-bold text-slate-500 mb-1">أو حدد تاريخ انتهاء مخصص:</label>
+                       <input
+                         type="date"
+                         value={newSubExpiry}
+                         onChange={(e) => setNewSubExpiry(e.target.value)}
+                         className="w-full px-3 py-2 border rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm outline-none"
+                       />
+                     </div>
+                     <div className="flex gap-2 justify-between items-center pt-2">
+                       <button
+                         type="button"
+                         onClick={() => quickActivateStudentSub(editingStudent, 0)}
+                         className="px-3 py-2 text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl cursor-pointer"
+                       >
+                         إلغاء الاشتراك
+                       </button>
+
+                       <div className="flex gap-2">
+                         <button
+                           type="button"
+                           onClick={() => setEditingStudent(null)}
+                           className="px-4 py-2 text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl cursor-pointer"
+                         >
+                           إلغاء
+                         </button>
+                         <button
+                           type="submit"
+                           className="px-4 py-2 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl cursor-pointer"
+                         >
+                           حفظ التاريخ
+                         </button>
+                       </div>
+                     </div>
+                   </form>
+                 </div>
+               </div>
+             )}
+          </div>
+        )}
+
+        {/* TAB: Subscription Requests (طلبات الاشتراك والقبول) */}
+        {tab === 'requests' && (
+          <div className="space-y-6" dir="rtl">
+            {/* Requests Header & Filter */}
+            <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-xl flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-amber-500" />
+                  <span>طلبات اشتراك الطلاب بالمرحلة التعليمية</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  راجع طلبات الطلاب الجدد وقم بقبول وتفعيل اشتراكاتهم أو رفضها قبل منحهم صلاحية فتح الدروس والكورسات.
+                </p>
+              </div>
+
+              {/* Status Filter Pills */}
+              <div className="flex flex-wrap gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800">
+                <button
+                  onClick={() => setReqStatusFilter('pending')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    reqStatusFilter === 'pending'
+                      ? 'bg-amber-500 text-white shadow'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
+                  }`}
+                >
+                  قيد المراجعة ({subscriptionRequests.filter((r) => r.status === 'pending').length})
+                </button>
+                <button
+                  onClick={() => setReqStatusFilter('approved')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    reqStatusFilter === 'approved'
+                      ? 'bg-emerald-600 text-white shadow'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
+                  }`}
+                >
+                  المقبولة ({subscriptionRequests.filter((r) => r.status === 'approved').length})
+                </button>
+                <button
+                  onClick={() => setReqStatusFilter('rejected')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    reqStatusFilter === 'rejected'
+                      ? 'bg-rose-600 text-white shadow'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
+                  }`}
+                >
+                  المرفوضة ({subscriptionRequests.filter((r) => r.status === 'rejected').length})
+                </button>
+                <button
+                  onClick={() => setReqStatusFilter('all')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    reqStatusFilter === 'all'
+                      ? 'bg-blue-600 text-white shadow'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
+                  }`}
+                >
+                  الكل ({subscriptionRequests.length})
+                </button>
+              </div>
+            </div>
+
+            {/* Requests List */}
+            {subscriptionRequests.filter((r) => reqStatusFilter === 'all' || r.status === reqStatusFilter).length === 0 ? (
+              <div className="bg-white dark:bg-slate-950 p-12 text-center rounded-3xl border border-slate-100 dark:border-slate-800 text-slate-400 shadow-md">
+                لا توجد طلبات اشتراك ضمن هذا الفلتر حالياً.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {subscriptionRequests
+                  .filter((r) => reqStatusFilter === 'all' || r.status === reqStatusFilter)
+                  .map((req) => (
+                    <div
+                      key={req.id}
+                      className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-md flex flex-col justify-between space-y-4 hover:shadow-lg transition-all"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start gap-2">
+                          <h4 className="font-black text-slate-800 dark:text-slate-100 text-base">{req.studentName}</h4>
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                              req.status === 'pending'
+                                ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 border border-amber-200/60'
+                                : req.status === 'approved'
+                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 border border-emerald-200/60'
+                                : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 border border-rose-200/60'
+                            }`}
+                          >
+                            {req.status === 'pending' ? '⏳ قيد المراجعة' : req.status === 'approved' ? '✅ مقبول ومفعل' : '❌ مرفوض'}
+                          </span>
+                        </div>
+
+                        <div className="text-xs space-y-2 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-100/50 dark:border-slate-800">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400 font-bold">الصف الدراسي:</span>
+                            <span className="font-extrabold text-blue-600 dark:text-blue-400">{GRADE_LABELS[req.grade]}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400 font-bold">هاتف الطالب:</span>
+                            <a
+                              href={`https://wa.me/2${req.studentPhone}`}
+                              target="_blank"
+                              referrerPolicy="no-referrer"
+                              className="font-mono text-emerald-600 font-bold hover:underline"
+                            >
+                              {req.studentPhone}
+                            </a>
+                          </div>
+
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400 font-bold">هاتف ولي الأمر:</span>
+                            {req.parentPhone ? (
+                              <a
+                                href={`https://wa.me/2${req.parentPhone}`}
+                                target="_blank"
+                                referrerPolicy="no-referrer"
+                                className="font-mono text-emerald-600 font-bold hover:underline"
+                              >
+                                {req.parentPhone}
+                              </a>
+                            ) : (
+                              <span className="text-slate-400 font-normal">غير متاح</span>
+                            )}
+                          </div>
+
+                          <div className="flex justify-between items-center pt-1 border-t border-slate-200/40 dark:border-slate-800 text-[11px] text-slate-400">
+                            <span>تاريخ الطلب:</span>
+                            <span className="font-mono">
+                              {new Date(req.requestedAt).toLocaleDateString('ar-EG', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                        {req.status === 'pending' && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => handleApproveSubscriptionRequest(req)}
+                              className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <UserCheck className="w-4 h-4" />
+                              <span>قبول وتفعيل شهر</span>
+                            </button>
+                            <button
+                              onClick={() => handleRejectSubscriptionRequest(req)}
+                              className="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-xl border border-rose-200/60 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <XCircle className="w-4 h-4" />
+                              <span>رفض الطلب</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {req.status === 'approved' && (
+                          <div className="flex items-center justify-between p-2 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-xl border border-emerald-200/40">
+                            <span>تم قبول الاشتراك وتفعيل الصف بنجاح</span>
+                            <button
+                              onClick={() => handleRejectSubscriptionRequest(req)}
+                              className="text-[11px] text-rose-500 hover:underline cursor-pointer"
+                            >
+                              إلغاء التفعيل
+                            </button>
+                          </div>
+                        )}
+
+                        {req.status === 'rejected' && (
+                          <button
+                            onClick={() => handleApproveSubscriptionRequest(req)}
+                            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow cursor-pointer"
+                          >
+                            إعادة النظر والموافقة
+                          </button>
+                        )}
+
+                        {/* WhatsApp Communication Shortcut */}
+                        <div className="flex gap-2 pt-1">
+                          <a
+                            href={`https://wa.me/2${req.studentPhone}`}
+                            target="_blank"
+                            referrerPolicy="no-referrer"
+                            className="flex-1 py-1.5 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-[11px] rounded-xl text-center cursor-pointer flex items-center justify-center gap-1"
+                          >
+                            <Phone className="w-3 h-3 text-emerald-500" />
+                            <span>واتساب الطالب</span>
+                          </a>
+                          {req.parentPhone && (
+                            <a
+                              href={`https://wa.me/2${req.parentPhone}`}
+                              target="_blank"
+                              referrerPolicy="no-referrer"
+                              className="flex-1 py-1.5 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-[11px] rounded-xl text-center cursor-pointer flex items-center justify-center gap-1"
+                            >
+                              <Phone className="w-3 h-3 text-emerald-500" />
+                              <span>ولي الأمر</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex gap-3 justify-end pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditingStudent(null)}
-                        className="px-4 py-2 text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl cursor-pointer"
-                      >
-                        إلغاء
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl cursor-pointer"
-                      >
-                        تحديث وحفظ
-                      </button>
-                    </div>
-                  </form>
-                </div>
+                  ))}
               </div>
             )}
           </div>

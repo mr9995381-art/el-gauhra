@@ -1,13 +1,14 @@
-import { BookOpen, User, Sparkles, MessageSquare, Phone, HelpCircle, GraduationCap, CheckCircle, ArrowLeft } from 'lucide-react';
+import { BookOpen, User, Sparkles, MessageSquare, Phone, HelpCircle, GraduationCap, CheckCircle, ArrowLeft, ShieldAlert } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface HomeViewProps {
   userProfile: UserProfile | null;
   onOpenAuth: () => void;
   setCurrentView: (view: string) => void;
+  onOpenMasterAccess?: () => void;
 }
 
-export default function HomeView({ userProfile, onOpenAuth, setCurrentView }: HomeViewProps) {
+export default function HomeView({ userProfile, onOpenAuth, setCurrentView, onOpenMasterAccess }: HomeViewProps) {
   const phone = '+201102140676';
   const displayPhone = '+20 11 0214 0676';
 
@@ -49,7 +50,7 @@ export default function HomeView({ userProfile, onOpenAuth, setCurrentView }: Ho
                 <span className="text-blue-400">بسهولة واحترافية</span> مع مستر عبدالله
               </h1>
               <p className="text-blue-100 text-base sm:text-lg max-w-xl opacity-85 leading-relaxed">
-                منصة تعليمية متكاملة ومصممة خصيصاً لطلاب جميع المراحل الدراسية (الابتدائية، الإعدادية، والثانوية) لشرح المناهج وتأصيل قواعد اللغة الإنجليزية بأحدث الاستراتيجيات العلمية.
+                منصة تعليمية متكاملة ومصممة خصيصاً لطلاب المرحلة الإعدادية والثانوية لشرح المناهج وتأصيل قواعد اللغة الإنجليزية بأحدث الاستراتيجيات العلمية.
               </p>
 
               {/* Support Message Alert */}
@@ -85,6 +86,24 @@ export default function HomeView({ userProfile, onOpenAuth, setCurrentView }: Ho
                   >
                     <GraduationCap className="w-5 h-5" />
                     سجل حسابك مجاناً
+                  </button>
+                )}
+
+                {/* Master Access Icon Button (Hidden for students) */}
+                {(!userProfile || userProfile.role === 'master') && (
+                  <button
+                    onClick={() => {
+                      if (userProfile?.role === 'master') {
+                        setCurrentView('master_dashboard');
+                      } else if (onOpenMasterAccess) {
+                        onOpenMasterAccess();
+                      }
+                    }}
+                    className="px-6 py-3 bg-slate-900 hover:bg-black text-amber-400 font-extrabold rounded-full border border-amber-500/40 shadow-lg hover:shadow-xl transition-all flex items-center gap-2 cursor-pointer"
+                    title="دخول مستر عبدالله سيد"
+                  >
+                    <ShieldAlert className="w-5 h-5 text-amber-400" />
+                    <span>دخول المستر</span>
                   </button>
                 )}
               </div>
@@ -140,31 +159,12 @@ export default function HomeView({ userProfile, onOpenAuth, setCurrentView }: Ho
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* المرحلة الابتدائية */}
-          <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md transition-shadow group flex flex-col justify-between text-right">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          {/* المرحلة الإعدادية */}
+          <div className="bg-white dark:bg-slate-950 p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md transition-shadow group flex flex-col justify-between text-right">
             <div>
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-950/40 rounded-2xl flex items-center justify-center text-blue-750 font-sans font-bold text-xl mb-4 group-hover:bg-blue-700 group-hover:text-white transition-colors">
                 1
-              </div>
-              <h4 className="text-xl font-bold mb-2 text-slate-800 dark:text-slate-100">المرحلة الابتدائية</h4>
-              <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 leading-relaxed">
-                تأسيس سليم وممتع لطلاب الصف الأول حتى السادس الابتدائي بأحدث الأساليب التعليمية لتبسيط الكلمات والجرامر والنطق الصحيح.
-              </p>
-            </div>
-            <button
-              onClick={() => setCurrentView('courses')}
-              className="w-full py-3 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold rounded-xl group-hover:bg-blue-50 dark:group-hover:bg-blue-950/35 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors text-sm cursor-pointer"
-            >
-              استعراض المناهج
-            </button>
-          </div>
-
-          {/* المرحلة الإعدادية */}
-          <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md transition-shadow group flex flex-col justify-between text-right">
-            <div>
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-950/40 rounded-2xl flex items-center justify-center text-blue-750 font-sans font-bold text-xl mb-4 group-hover:bg-blue-700 group-hover:text-white transition-colors">
-                2
               </div>
               <h4 className="text-xl font-bold mb-2 text-slate-800 dark:text-slate-100">المرحلة الإعدادية</h4>
               <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 leading-relaxed">
@@ -180,10 +180,10 @@ export default function HomeView({ userProfile, onOpenAuth, setCurrentView }: Ho
           </div>
 
           {/* المرحلة الثانوية */}
-          <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md transition-shadow group flex flex-col justify-between text-right">
+          <div className="bg-white dark:bg-slate-950 p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md transition-shadow group flex flex-col justify-between text-right">
             <div>
               <div className="w-12 h-12 bg-blue-700 text-white rounded-2xl flex items-center justify-center font-sans font-bold text-xl mb-4">
-                3
+                2
               </div>
               <h4 className="text-xl font-bold mb-2 text-slate-800 dark:text-slate-100">المرحلة الثانوية</h4>
               <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 leading-relaxed">

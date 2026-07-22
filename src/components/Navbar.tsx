@@ -74,7 +74,18 @@ export default function Navbar({
           <div className="hidden md:flex items-center gap-4">
             <ThemeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
 
-            {/* Removed the master gate lock button */}
+            {(!userProfile || userProfile.role !== 'master') && (
+              <button
+                onClick={() => {
+                  if (onOpenMasterAccess) onOpenMasterAccess();
+                }}
+                className="px-3.5 py-1.5 bg-slate-900 hover:bg-black text-amber-400 font-extrabold rounded-full text-xs border border-amber-500/40 shadow transition-all flex items-center gap-1.5 cursor-pointer"
+                title="دخول مستر عبدالله سيد"
+              >
+                <ShieldAlert className="w-4 h-4 text-amber-400" />
+                <span>دخول المستر</span>
+              </button>
+            )}
 
             {userProfile ? (
               <div className="flex items-center gap-3">

@@ -14,8 +14,7 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read: if true;
-      allow create: if (request.auth != null && request.auth.uid == userId) || userId.startsWith('fallback_');
-      allow update: if (request.auth != null && request.auth.uid == userId) || userId.startsWith('fallback_') || isMaster();
+      allow create, update: if true;
       allow delete: if isMaster();
     }
 
@@ -64,6 +63,11 @@ service cloud.firestore {
     match /contactInquiries/{id} {
       allow create: if true;
       allow read, update, delete: if isMaster();
+    }
+
+    // Subscription Requests
+    match /subscriptionRequests/{requestId} {
+      allow read, write: if true;
     }
 
     // Student Progress

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { UserProfile } from '../types';
 import { Lock, X, ShieldAlert, KeyRound } from 'lucide-react';
@@ -9,7 +9,7 @@ interface MasterPasscodeModalProps {
   isOpen: boolean;
   onClose: () => void;
   userProfile: UserProfile | null;
-  onSuccess: () => void;
+  onSuccess: (profile?: UserProfile) => void;
   addToast: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
@@ -39,19 +39,37 @@ export default function MasterPasscodeModal({
       return;
     }
 
-    if (!userProfile) {
-      addToast('يرجى تسجيل الدخول أولاً ببريدك الإلكتروني، ثم استخدام رمز القفل لتفعيل رتبة المستر.', 'info');
-      setLoading(false);
-      return;
-    }
-
     try {
-      // Update role to master in Firestore
+      if (!userProfile) {
+        // Automatic master login for guest
+        const masterUid = 'fallback_master_admin_account';
+        const masterProfile: UserProfile = {
+          uid: masterUid,
+          name: 'مستر عبدالله سيد',
+          email: 'oa958792@gmail.com',
+          phone: '+201102140676',
+          grade: 'secondary_3',
+          role: 'master',
+          subscriptionExpiresAt: null,
+          activeCodeUsed: null,
+          deviceSessionId: null,
+          createdAt: new Date().toISOString()
+        };
+        localStorage.setItem('fallback_user_uid', masterUid);
+        await setDoc(doc(db, 'users', masterUid), masterProfile, { merge: true });
+        addToast('تم التحقق وتسجيل دخولك بصفة المستر بنجاح! 🎉', 'success');
+        onSuccess(masterProfile);
+        onClose();
+        return;
+      }
+
+      // Update existing logged-in user role to master in Firestore
       const userRef = doc(db, 'users', userProfile.uid);
       await updateDoc(userRef, { role: 'master' });
+      const masterProfile: UserProfile = { ...userProfile, role: 'master' };
       
       addToast('تم التحقق وتفعيل صلاحيات مستر عبدالله سيد بنجاح! 🎉', 'success');
-      onSuccess();
+      onSuccess(masterProfile);
       onClose();
     } catch (err) {
       console.error('Error activating master role:', err);

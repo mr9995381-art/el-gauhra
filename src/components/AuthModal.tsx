@@ -21,6 +21,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [parentPhone, setParentPhone] = useState('');
   const [grade, setGrade] = useState<EducationalGrade>('secondary_3');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -174,9 +175,11 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
             name: name.trim(),
             email: cleanEmail,
             phone: phone.trim(),
+            parentPhone: parentPhone.trim(),
             grade,
             role,
-            subscriptionExpiresAt: null,
+            subscriptionStatus: role === 'master' ? 'approved' : 'none',
+            subscriptionExpiresAt: role === 'master' ? '2099-12-31T23:59:59.000Z' : null,
             activeCodeUsed: null,
             deviceSessionId,
             createdAt: new Date().toISOString(),
@@ -221,9 +224,11 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
               name: name.trim(),
               email: cleanEmail,
               phone: phone.trim(),
+              parentPhone: parentPhone.trim(),
               grade,
               role,
-              subscriptionExpiresAt: null,
+              subscriptionStatus: role === 'master' ? 'approved' : 'none',
+              subscriptionExpiresAt: role === 'master' ? '2099-12-31T23:59:59.000Z' : null,
               activeCodeUsed: null,
               deviceSessionId,
               createdAt: new Date().toISOString(),
@@ -347,18 +352,34 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
 
               {/* Phone (Registration only) */}
               {!isLogin && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">رقم الهاتف أو واتساب</label>
-                  <div className="relative">
-                    <Phone className="absolute right-3 top-2.5 w-5 h-5 text-slate-400" />
-                    <input
-                      type="tel"
-                      required
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full pr-10 pl-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 text-left outline-none"
-                      placeholder="+20 123 456 7890"
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">رقم هاتف الطالب</label>
+                    <div className="relative">
+                      <Phone className="absolute right-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="tel"
+                        required
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="w-full pr-9 pl-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 text-left outline-none text-xs"
+                        placeholder="01100000000"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">رقم هاتف ولي الأمر</label>
+                    <div className="relative">
+                      <Phone className="absolute right-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="tel"
+                        value={parentPhone}
+                        onChange={(e) => setParentPhone(e.target.value)}
+                        className="w-full pr-9 pl-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 text-left outline-none text-xs"
+                        placeholder="01000000000"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
