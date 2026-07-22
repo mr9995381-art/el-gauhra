@@ -74,7 +74,8 @@ export default function Navbar({
           <div className="hidden md:flex items-center gap-4">
             <ThemeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
 
-            {(!userProfile || userProfile.role !== 'master') && (
+            {/* Master Access Button: Only shown for unauthenticated guests so Master can unlock admin mode */}
+            {!userProfile && (
               <button
                 onClick={() => {
                   if (onOpenMasterAccess) onOpenMasterAccess();
@@ -90,34 +91,38 @@ export default function Navbar({
             {userProfile ? (
               <div className="flex items-center gap-3">
                 {userProfile.role === 'master' && (
+                  <>
+                    <button
+                      onClick={() => handleNavClick('student_dashboard')}
+                      className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer ${
+                        currentView === 'student_dashboard'
+                          ? 'text-blue-700 bg-blue-50/70 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-900'
+                      }`}
+                    >
+                      <User className="w-4 h-4" />
+                      معاينة الطالب
+                    </button>
+                    <button
+                      onClick={() => handleNavClick('master_dashboard')}
+                      className="flex items-center gap-1.5 px-5 py-2 text-xs font-extrabold text-amber-400 bg-slate-900 hover:bg-black rounded-full shadow-md transition-all cursor-pointer border border-amber-500/30"
+                    >
+                      <ShieldAlert className="w-4 h-4 text-amber-400" />
+                      لوحة المستر
+                    </button>
+                  </>
+                )}
+
+                {userProfile.role === 'student' && (
                   <button
                     onClick={() => handleNavClick('student_dashboard')}
-                    className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full transition-all cursor-pointer ${
-                      currentView === 'student_dashboard'
-                        ? 'text-blue-700 bg-blue-50/70 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-900'
-                    }`}
+                    className="flex items-center gap-1.5 px-6 py-2 text-sm font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-full shadow-lg shadow-blue-200/50 dark:shadow-none transition-all cursor-pointer"
                   >
                     <User className="w-4 h-4" />
-                    بوابة الطالب
+                    لوحتي التعليمية
                   </button>
                 )}
-                <button
-                  onClick={() => handleNavClick(userProfile.role === 'master' ? 'master_dashboard' : 'student_dashboard')}
-                  className="flex items-center gap-1.5 px-6 py-2 text-sm font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-full shadow-lg shadow-blue-200/50 dark:shadow-none transition-all cursor-pointer"
-                >
-                  {userProfile.role === 'master' ? (
-                    <>
-                      <ShieldAlert className="w-4 h-4" />
-                      لوحة المستر
-                    </>
-                  ) : (
-                    <>
-                      <User className="w-4 h-4" />
-                      لوحتي التعليمية
-                    </>
-                  )}
-                </button>
+
                 <button
                   onClick={onLogout}
                   className="p-2 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 transition-colors rounded-full hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer"

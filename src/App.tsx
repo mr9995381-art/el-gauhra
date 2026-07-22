@@ -169,6 +169,20 @@ export default function App() {
     };
   }, []);
 
+  // RBAC route protection effect: Force redirect students away from master/admin paths
+  useEffect(() => {
+    if (!loadingAuth && userProfile) {
+      if (userProfile.role === 'student') {
+        const hash = window.location.hash.replace('#', '').toLowerCase();
+        if (currentView === 'master_dashboard' || hash.includes('master') || hash.includes('admin')) {
+          setCurrentView('student_dashboard');
+          window.location.hash = 'student_dashboard';
+          addToast('تم توجيهك تلقائياً إلى لوحتك التعليمية.', 'info');
+        }
+      }
+    }
+  }, [userProfile, currentView, loadingAuth]);
+
   // Fetch announcements for specific grade
   const fetchStudentAnnouncements = async (grade: string) => {
     try {
@@ -203,7 +217,13 @@ export default function App() {
 
   // Safe navigation wrapper that checks if page is private
   const navigateTo = (view: string) => {
-    if (view === 'master_dashboard') {
+    if (view === 'master_dashboard' || view === 'admin') {
+      if (userProfile && userProfile.role === 'student') {
+        addToast('عذراً، هذا القسم خاص بإدارة المنصة ولا يمكن للطلاب الوصول إليه.', 'error');
+        setCurrentView('student_dashboard');
+        window.location.hash = 'student_dashboard';
+        return;
+      }
       if (!userProfile || userProfile.role !== 'master') {
         setMasterModalOpen(true);
         return;
@@ -251,8 +271,20 @@ export default function App() {
       {/* Main Content Stage */}
       <main className="flex-grow">
         {loadingAuth ? (
-          <div className="flex justify-center items-center h-96">
-            <span className="inline-block w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+          <div className="flex flex-col justify-center items-center h-[500px] text-center px-4" dir="rtl">
+            <div className="relative mb-6">
+              <div className="w-16 h-16 bg-blue-700 text-white rounded-2xl flex items-center justify-center text-2xl font-black shadow-xl animate-pulse">
+                AS
+              </div>
+              <span className="absolute -bottom-1 -right-1 flex h-4 w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-blue-600"></span>
+              </span>
+            </div>
+            <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 mb-2">منصة مستر عبدالله سيد التعليمية</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed">
+              جاري التحقق من بيانات الحساب وتجهيز تجربة التعلم التفاعلية...
+            </p>
           </div>
         ) : (
           <AnimatePresence mode="wait">
