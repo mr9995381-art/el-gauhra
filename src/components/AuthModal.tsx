@@ -83,7 +83,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           grade: 'secondary_3',
           role,
           photoURL: user.photoURL || '',
-          subscriptionExpiresAt: null,
+          subscriptionExpiresAt: role === 'master' ? '2099-12-31T23:59:59.000Z' : null,
+          subscriptionStatus: role === 'master' ? 'approved' : 'none',
           activeCodeUsed: null,
           deviceSessionId,
           createdAt: new Date().toISOString(),
@@ -99,11 +100,15 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
       if (err.code === 'auth/popup-closed-by-user') {
         addToast('تم إلغاء عملية تسجيل الدخول بواسطة Google.', 'info');
       } else if (err.code === 'auth/network-request-failed') {
-        addToast('حدث خطأ في الاتصال بالشبكة. يرجى التأكد من الإنترنت والمحاولة مجدداً.', 'error');
+        addToast('حدث خطأ في الاتصال بالشبكة. يرجى التأكد من اتصال الإنترنت.', 'error');
       } else if (err.code === 'auth/popup-blocked') {
         addToast('تم حظر النافذة المنبثقة من قبل المتصفح. يرجى السماح بالنوافذ المنبثقة.', 'error');
+      } else if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/admin-restricted-operation' || err.code === 'auth/configuration-not-found') {
+        addToast('تنويه: خيار Google Sign-In يحتاج إلى تفعيل في لوحة تحكم Firebase (Authentication -> Sign-in method -> Google).', 'error');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        addToast('هذا النطاق يحتاج لإضافته في قائمة Authorized Domains بـ Firebase Console (Authentication -> Settings).', 'error');
       } else {
-        addToast('حدث خطأ أثناء تسجيل الدخول باستخدام Google. يرجى المحاولة لاحقاً.', 'error');
+        addToast(`خطأ في تسجيل الدخول بـ Google (${err.message || err.code || 'خطأ غير معروف'})`, 'error');
       }
     } finally {
       setLoading(false);
@@ -138,20 +143,18 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
       }
 
       const cleanIdentifier = email.trim().toLowerCase();
-      const cleanEmail = cleanIdentifier;
+      const cleanEmail = cleanIdentifier.includes('@') ? cleanIdentifier : `${cleanIdentifier}@student.mester`;
       const rawInput = email.trim();
 
       if (isLogin) {
         // Login
         try {
-          // If input looks like an email, try standard Firebase Auth
+          // Try standard Firebase Auth
           let userCred = null;
-          if (cleanIdentifier.includes('@')) {
-            try {
-              userCred = await signInWithEmailAndPassword(auth, cleanIdentifier, password);
-            } catch (e) {
-              // Ignore email auth error and fall through to Firestore lookup
-            }
+          try {
+            userCred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+          } catch (e) {
+            // Ignore email auth error and fall through to Firestore lookup
           }
 
           if (userCred) {
@@ -191,11 +194,21 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           const usersRef = collection(db, 'users');
           let matchedProfile: UserProfile | null = null;
 
-          // 1. Check by email
-          if (cleanIdentifier.includes('@')) {
-            const qEmail = query(usersRef, where('email', '==', cleanIdentifier));
-            const snapEmail = await getDocs(qEmail);
-            snapEmail.forEach((docSnap) => {
+          // 1. Check by email / student email
+          const qEmail = query(usersRef, where('email', '==', cleanEmail));
+          const snapEmail = await getDocs(qEmail);
+          snapEmail.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data.fallbackPassword === password || !data.fallbackPassword) {
+              matchedProfile = { uid: docSnap.id, ...data } as unknown as UserProfile;
+            }
+          });
+
+          // 2. Check by raw email input if different
+          if (!matchedProfile && cleanIdentifier.includes('@')) {
+            const qRawEmail = query(usersRef, where('email', '==', cleanIdentifier));
+            const snapRawEmail = await getDocs(qRawEmail);
+            snapRawEmail.forEach((docSnap) => {
               const data = docSnap.data();
               if (data.fallbackPassword === password || !data.fallbackPassword) {
                 matchedProfile = { uid: docSnap.id, ...data } as unknown as UserProfile;
@@ -203,7 +216,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
             });
           }
 
-          // 2. Check by UID / Student ID
+          // 3. Check by UID / Student ID
           if (!matchedProfile) {
             const userDocByUid = await getDoc(doc(db, 'users', rawInput));
             if (userDocByUid.exists()) {
@@ -214,7 +227,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
             }
           }
 
-          // 3. Check by Phone
+          // 4. Check by Phone
           if (!matchedProfile) {
             const qPhone = query(usersRef, where('phone', '==', rawInput));
             const snapPhone = await getDocs(qPhone);
@@ -309,8 +322,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           }
           onClose();
         } catch (authErr: any) {
-          // Fallback registration if auth/operation-not-allowed
-          if (authErr.code === 'auth/operation-not-allowed') {
+          // Fallback registration if auth/operation-not-allowed, auth/configuration-not-found, or auth/admin-restricted-operation
+          if (
+            authErr.code === 'auth/operation-not-allowed' ||
+            authErr.code === 'auth/configuration-not-found' ||
+            authErr.code === 'auth/admin-restricted-operation'
+          ) {
             // Check if email already registered in our users table
             const usersRef = collection(db, 'users');
             const q = query(usersRef, where('email', '==', cleanEmail));
