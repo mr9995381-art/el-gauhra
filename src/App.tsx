@@ -49,7 +49,6 @@ export default function App() {
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const isDark = savedTheme === 'dark' || (!savedTheme && systemPrefersDark);
     setDarkMode(isDark);
-    document.documentElement.classList.toggle('dark', isDark);
     
     // Seed requested lesson for Prep 1
     seedInitialDataIfEmpty();
@@ -70,6 +69,17 @@ export default function App() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  // Update html class and localStorage when darkMode changes
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
 
   // Listen for user auth state
   useEffect(() => {
@@ -122,26 +132,11 @@ export default function App() {
               fetchStudentAnnouncements(profile.grade);
             }
 
-            // Set up real-time session listener to prevent multiple devices sharing same account
+            // Set up real-time profile listener to keep user profile state updated
             const unsubProfileInner = onSnapshot(userDocRef, (snap) => {
               if (snap.exists()) {
                 const updatedData = snap.data() as UserProfile;
-                const localSession = localStorage.getItem('device_session_id');
-
-                if (
-                  updatedData.deviceSessionId &&
-                  localSession &&
-                  updatedData.deviceSessionId !== localSession
-                ) {
-                  // Device session mismatch! Log them out instantly
-                  signOut(auth);
-                  setUserProfile(null);
-                  setCurrentView('home');
-                  addToast(
-                    'تم تسجيل الدخول إلى حسابك من جهاز آخر. لا يمكن استخدام الحساب على أكثر من جهاز في نفس الوقت.',
-                    'error'
-                  );
-                }
+                setUserProfile(updatedData);
               }
             });
 

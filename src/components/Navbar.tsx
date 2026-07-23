@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Menu, X, LogOut, User, ShieldAlert, BookOpen, Lock } from 'lucide-react';
+import { Menu, X, LogOut, User, ShieldAlert } from 'lucide-react';
 import { UserProfile } from '../types';
 import ThemeToggle from './ThemeToggle';
+import LanguageSwitcher from './LanguageSwitcher';
+import { useLanguage } from '../lib/LanguageContext';
 
 interface NavbarProps {
   currentView: string;
@@ -25,13 +27,14 @@ export default function Navbar({
   onOpenMasterAccess,
 }: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { t, isRtl, lang } = useLanguage();
 
   const navItems = [
-    { key: 'home', label: 'الرئيسية' },
-    { key: 'about', label: 'من نحن' },
-    { key: 'courses', label: 'الكورسات' },
-    { key: 'faq', label: 'الأسئلة الشائعة' },
-    { key: 'contact', label: 'تواصل معنا' },
+    { key: 'home', label: t('nav_home') },
+    { key: 'about', label: t('nav_about') },
+    { key: 'courses', label: t('nav_courses') },
+    { key: 'faq', label: t('nav_faq') },
+    { key: 'contact', label: t('nav_contact') },
   ];
 
   const handleNavClick = (view: string) => {
@@ -40,7 +43,7 @@ export default function Navbar({
   };
 
   return (
-    <nav className="sticky top-0 z-40 w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-850 shadow-sm" dir="rtl">
+    <nav className="sticky top-0 z-40 w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -49,7 +52,7 @@ export default function Navbar({
               AS
             </div>
             <span className="text-xl sm:text-2xl font-black text-blue-900 dark:text-blue-400 tracking-tight font-sans">
-              مستر عبدالله سيد
+              {lang === 'en' ? 'Mr. Abdullah Sayed' : 'مستر عبدالله سيد'}
             </span>
           </div>
 
@@ -71,10 +74,11 @@ export default function Navbar({
           </div>
 
           {/* Right Side Actions */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
+            <LanguageSwitcher />
             <ThemeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
 
-            {/* Stealth Master Access Icon Button (Blends into header background) */}
+            {/* Stealth Master Access Icon Button */}
             <button
               onClick={() => {
                 if (userProfile?.role === 'admin' || userProfile?.role === 'master') {
@@ -84,7 +88,7 @@ export default function Navbar({
                 }
               }}
               className="p-2 text-slate-300 dark:text-slate-700 hover:text-amber-500 dark:hover:text-amber-400 transition-colors rounded-xl cursor-pointer opacity-50 hover:opacity-100"
-              title="دخول مستر عبدالله سيد (خاص بالإدارة)"
+              title={t('nav_master_login')}
               aria-label="Master Access"
             >
               <ShieldAlert className="w-4.5 h-4.5" />
@@ -96,16 +100,16 @@ export default function Navbar({
                 onClick={() => {
                   if (onOpenMasterAccess) onOpenMasterAccess();
                 }}
-                className="px-3.5 py-1.5 bg-slate-900 hover:bg-black text-amber-400 font-extrabold rounded-full text-xs border border-amber-500/40 shadow transition-all flex items-center gap-1.5 cursor-pointer"
-                title="دخول مستر عبدالله سيد"
+                className="px-3 py-1.5 bg-slate-900 hover:bg-black text-amber-400 font-extrabold rounded-full text-xs border border-amber-500/40 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                title={t('nav_master_login')}
               >
                 <ShieldAlert className="w-4 h-4 text-amber-400" />
-                <span>دخول المستر</span>
+                <span>{t('nav_master_login')}</span>
               </button>
             )}
 
             {userProfile ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 {(userProfile.role === 'admin' || userProfile.role === 'master') && (
                   <>
                     <button
@@ -117,14 +121,14 @@ export default function Navbar({
                       }`}
                     >
                       <User className="w-4 h-4" />
-                      معاينة الطالب
+                      {t('nav_student_view')}
                     </button>
                     <button
                       onClick={() => handleNavClick('master_dashboard')}
-                      className="flex items-center gap-1.5 px-5 py-2 text-xs font-extrabold text-amber-400 bg-slate-900 hover:bg-black rounded-full shadow-md transition-all cursor-pointer border border-amber-500/30"
+                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-extrabold text-amber-400 bg-slate-900 hover:bg-black rounded-full shadow-md transition-all cursor-pointer border border-amber-500/30"
                     >
                       <ShieldAlert className="w-4 h-4 text-amber-400" />
-                      لوحة المستر
+                      {t('nav_master_dashboard')}
                     </button>
                   </>
                 )}
@@ -132,17 +136,17 @@ export default function Navbar({
                 {userProfile.role === 'student' && (
                   <button
                     onClick={() => handleNavClick('student_dashboard')}
-                    className="flex items-center gap-1.5 px-6 py-2 text-sm font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-full shadow-lg shadow-blue-200/50 dark:shadow-none transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-5 py-2 text-xs sm:text-sm font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-full shadow-md transition-all cursor-pointer"
                   >
                     <User className="w-4 h-4" />
-                    لوحتي التعليمية
+                    {t('nav_student_dashboard')}
                   </button>
                 )}
 
                 <button
                   onClick={onLogout}
                   className="p-2 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 transition-colors rounded-full hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer"
-                  title="تسجيل الخروج"
+                  title={t('nav_logout')}
                 >
                   <LogOut className="w-5 h-5" />
                 </button>
@@ -151,15 +155,15 @@ export default function Navbar({
               <div className="flex items-center gap-2">
                 <button
                   onClick={onOpenAuth}
-                  className="px-6 py-2 border-2 border-blue-700 text-blue-700 dark:border-blue-500 dark:text-blue-400 rounded-full font-bold text-xs hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all cursor-pointer"
+                  className="px-4 py-1.5 border-2 border-blue-700 text-blue-700 dark:border-blue-500 dark:text-blue-400 rounded-full font-bold text-xs hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all cursor-pointer"
                 >
-                  دخول
+                  {t('nav_login')}
                 </button>
                 <button
                   onClick={onOpenAuth}
-                  className="px-6 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-full font-bold text-xs shadow-lg shadow-blue-200/50 dark:shadow-none transition-all cursor-pointer"
+                  className="px-4 py-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded-full font-bold text-xs shadow-md transition-all cursor-pointer"
                 >
-                  ابدأ الآن
+                  {t('nav_get_started')}
                 </button>
               </div>
             )}
@@ -167,22 +171,7 @@ export default function Navbar({
 
           {/* Mobile header controls */}
           <div className="flex items-center gap-2 md:hidden">
-            {/* Stealth Master Access Icon for Mobile Header Bar */}
-            <button
-              onClick={() => {
-                if (userProfile?.role === 'master') {
-                  handleNavClick('master_dashboard');
-                } else if (onOpenMasterAccess) {
-                  onOpenMasterAccess();
-                }
-              }}
-              className="p-2 text-slate-300 dark:text-slate-700 hover:text-amber-500 dark:hover:text-amber-400 transition-colors rounded-xl cursor-pointer opacity-40 hover:opacity-100"
-              title="دخول مستر عبدالله سيد (خاص)"
-              aria-label="Master Access Mobile"
-            >
-              <ShieldAlert className="w-4 h-4" />
-            </button>
-
+            <LanguageSwitcher />
             <ThemeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
             <button
               onClick={() => setIsOpen(!isOpen)}
@@ -201,7 +190,7 @@ export default function Navbar({
             <button
               key={item.key}
               onClick={() => handleNavClick(item.key)}
-              className={`block w-full text-right px-4 py-2.5 text-base font-bold font-sans rounded-xl transition-colors ${
+              className={`block w-full text-start px-4 py-2.5 text-base font-bold font-sans rounded-xl transition-colors ${
                 currentView === item.key
                   ? 'text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400'
                   : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900'
@@ -216,10 +205,10 @@ export default function Navbar({
               {(userProfile.role === 'admin' || userProfile.role === 'master') && (
                 <button
                   onClick={() => handleNavClick('student_dashboard')}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-base font-bold text-blue-700 border border-blue-100 dark:border-blue-950 bg-blue-50/50 dark:bg-blue-950/20 rounded-full"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-base font-bold text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-950 bg-blue-50/50 dark:bg-blue-950/20 rounded-full"
                 >
                   <User className="w-5 h-5" />
-                  بوابة الطالب (عرض كطالب)
+                  {t('nav_student_view')}
                 </button>
               )}
               <button
@@ -227,9 +216,8 @@ export default function Navbar({
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-base font-bold text-white bg-blue-700 rounded-full"
               >
                 {(userProfile.role === 'admin' || userProfile.role === 'master') ? <ShieldAlert className="w-5 h-5" /> : <User className="w-5 h-5" />}
-                {(userProfile.role === 'admin' || userProfile.role === 'master') ? 'لوحة تحكم المستر' : 'لوحتي التعليمية'}
+                {(userProfile.role === 'admin' || userProfile.role === 'master') ? t('nav_master_dashboard') : t('nav_student_dashboard')}
               </button>
-              {/* Removed master gate button from mobile menu */}
               <button
                 onClick={() => {
                   onLogout();
@@ -238,7 +226,7 @@ export default function Navbar({
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-base font-bold text-rose-600 border border-rose-100 dark:border-rose-950 bg-rose-50/50 dark:bg-rose-950/20 rounded-full"
               >
                 <LogOut className="w-5 h-5" />
-                تسجيل الخروج
+                {t('nav_logout')}
               </button>
             </div>
           ) : (
@@ -250,7 +238,7 @@ export default function Navbar({
                 }}
                 className="w-full py-2.5 text-center text-base font-bold text-white bg-blue-700 rounded-full shadow-lg shadow-blue-200/50 dark:shadow-none cursor-pointer"
               >
-                تسجيل الدخول / الاشتراك
+                {t('nav_login_register')}
               </button>
 
               <button
@@ -260,7 +248,7 @@ export default function Navbar({
                 }}
                 className="w-full flex items-center justify-between px-4 py-2 text-xs font-bold text-slate-400 dark:text-slate-600 hover:text-amber-500 transition-colors rounded-xl border border-dashed border-slate-200 dark:border-slate-800 cursor-pointer"
               >
-                <span>دخول مستر عبدالله (رمز الدخول)</span>
+                <span>{t('nav_master_login')}</span>
                 <ShieldAlert className="w-4 h-4 text-amber-500/70" />
               </button>
             </div>
@@ -270,3 +258,4 @@ export default function Navbar({
     </nav>
   );
 }
+
