@@ -393,7 +393,7 @@ export default function App() {
             onClose={() => setAuthModalOpen(false)}
             onSuccess={(profile) => {
               setUserProfile(profile);
-              if (profile.role === 'master') {
+              if (profile.role === 'master' && profile.email === 'oa958792@gmail.com') {
                 setCurrentView('master_dashboard');
               } else {
                 setCurrentView('student_dashboard');

@@ -55,89 +55,121 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
         return;
       }
 
-      const cleanEmail = email.trim().toLowerCase();
+      const cleanIdentifier = email.trim().toLowerCase();
+      const cleanEmail = cleanIdentifier;
+      const rawInput = email.trim();
 
       if (isLogin) {
         // Login
         try {
-          const userCred = await signInWithEmailAndPassword(auth, cleanEmail, password);
-          const uid = userCred.user.uid;
-          
-          // Fetch profile
-          const userDoc = await getDoc(doc(db, 'users', uid));
-          if (userDoc.exists()) {
-            const profile = userDoc.data() as UserProfile;
-            
-            // Generate unique session ID for this device
-            const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-            localStorage.setItem('device_session_id', deviceSessionId);
-            
-            // Update Firestore
-            await updateDoc(doc(db, 'users', uid), { deviceSessionId });
-            
-            const updatedProfile = { ...profile, deviceSessionId };
-            onSuccess(updatedProfile);
-            addToast(`مرحباً بك مجدداً، ${profile.name}!`, 'success');
-            onClose();
-          } else {
-            // If profile does not exist (e.g. registered directly elsewhere), create default student profile
-            const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-            localStorage.setItem('device_session_id', deviceSessionId);
-
-            const newProfile: UserProfile = {
-              uid,
-              name: userCred.user.displayName || 'طالب جديد',
-              email: cleanEmail,
-              phone: 'غير محدد',
-              grade: 'secondary_3',
-              role: 'student',
-              subscriptionExpiresAt: null,
-              activeCodeUsed: null,
-              deviceSessionId,
-              createdAt: new Date().toISOString(),
-            };
-            await setDoc(doc(db, 'users', uid), newProfile);
-            onSuccess(newProfile);
-            addToast(`تم تسجيل الدخول بنجاح!`, 'success');
-            onClose();
+          // If input looks like an email, try standard Firebase Auth
+          let userCred = null;
+          if (cleanIdentifier.includes('@')) {
+            try {
+              userCred = await signInWithEmailAndPassword(auth, cleanIdentifier, password);
+            } catch (e) {
+              // Ignore email auth error and fall through to Firestore lookup
+            }
           }
-        } catch (authErr: any) {
-          // If Email/Password auth is not allowed or fails, attempt our secure Firestore-based local account lookup!
+
+          if (userCred) {
+            const uid = userCred.user.uid;
+            
+            // Fetch profile
+            const userDoc = await getDoc(doc(db, 'users', uid));
+            if (userDoc.exists()) {
+              const profile = userDoc.data() as UserProfile;
+              
+              // Ensure student role if not the main teacher account
+              let role = profile.role;
+              if (profile.email !== 'oa958792@gmail.com' && role === 'master') {
+                role = 'student';
+                await updateDoc(doc(db, 'users', uid), { role: 'student' });
+              }
+
+              // Generate unique session ID for this device
+              const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+              localStorage.setItem('device_session_id', deviceSessionId);
+              if (localStorage.getItem('fallback_user_uid') === 'fallback_master_admin_account') {
+                localStorage.removeItem('fallback_user_uid');
+              }
+
+              // Update Firestore
+              await updateDoc(doc(db, 'users', uid), { deviceSessionId, role });
+              
+              const updatedProfile = { ...profile, role, deviceSessionId };
+              onSuccess(updatedProfile);
+              addToast(`مرحباً بك مجدداً، ${profile.name}!`, 'success');
+              onClose();
+              return;
+            }
+          }
+
+          // Search Firestore by Email, UID (Student ID), or Phone
           const usersRef = collection(db, 'users');
-          const q = query(usersRef, where('email', '==', cleanEmail));
-          const querySnap = await getDocs(q);
-          
-          if (!querySnap.empty) {
-            let matchedProfile: UserProfile | null = null;
-            querySnap.forEach((docSnap) => {
+          let matchedProfile: UserProfile | null = null;
+
+          // 1. Check by email
+          if (cleanIdentifier.includes('@')) {
+            const qEmail = query(usersRef, where('email', '==', cleanIdentifier));
+            const snapEmail = await getDocs(qEmail);
+            snapEmail.forEach((docSnap) => {
               const data = docSnap.data();
               if (data.fallbackPassword === password || !data.fallbackPassword) {
                 matchedProfile = { uid: docSnap.id, ...data } as unknown as UserProfile;
               }
             });
+          }
 
-            if (matchedProfile) {
-              const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-              localStorage.setItem('device_session_id', deviceSessionId);
-              localStorage.setItem('fallback_user_uid', (matchedProfile as UserProfile).uid);
-
-              await updateDoc(doc(db, 'users', (matchedProfile as UserProfile).uid), { deviceSessionId });
-              
-              const updatedProfile = { ...matchedProfile, deviceSessionId } as UserProfile;
-              onSuccess(updatedProfile);
-              addToast(`مرحباً بك مجدداً، ${updatedProfile.name}!`, 'success');
-              onClose();
-              return;
+          // 2. Check by UID / Student ID
+          if (!matchedProfile) {
+            const userDocByUid = await getDoc(doc(db, 'users', rawInput));
+            if (userDocByUid.exists()) {
+              const data = userDocByUid.data();
+              if (data.fallbackPassword === password || !data.fallbackPassword) {
+                matchedProfile = { uid: userDocByUid.id, ...data } as unknown as UserProfile;
+              }
             }
           }
-          
-          // If fallback lookup didn't match
-          if (authErr.code === 'auth/operation-not-allowed') {
-            addToast('الحساب غير موجود أو كلمة المرور غير صحيحة. يمكنك إنشاء حساب جديد بضغط "إنشاء حساب جديد".', 'error');
-            setLoading(false);
+
+          // 3. Check by Phone
+          if (!matchedProfile) {
+            const qPhone = query(usersRef, where('phone', '==', rawInput));
+            const snapPhone = await getDocs(qPhone);
+            snapPhone.forEach((docSnap) => {
+              const data = docSnap.data();
+              if (data.fallbackPassword === password || !data.fallbackPassword) {
+                matchedProfile = { uid: docSnap.id, ...data } as unknown as UserProfile;
+              }
+            });
+          }
+
+          if (matchedProfile) {
+            let role = (matchedProfile as UserProfile).role;
+            if ((matchedProfile as UserProfile).email !== 'oa958792@gmail.com' && role === 'master') {
+              role = 'student';
+            }
+
+            const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+            localStorage.setItem('device_session_id', deviceSessionId);
+            localStorage.setItem('fallback_user_uid', (matchedProfile as UserProfile).uid);
+
+            await updateDoc(doc(db, 'users', (matchedProfile as UserProfile).uid), { deviceSessionId, role });
+            
+            const updatedProfile = { ...matchedProfile, role, deviceSessionId } as UserProfile;
+            onSuccess(updatedProfile);
+            addToast(`مرحباً بك مجدداً، ${updatedProfile.name}!`, 'success');
+            onClose();
             return;
           }
-          throw authErr;
+
+          addToast('بيانات الدخول (الكود أو البريد الإلكتروني أو كلمة المرور) غير صحيحة.', 'error');
+          setLoading(false);
+          return;
+        } catch (authErr: any) {
+          addToast('حدث خطأ أثناء تسجيل الدخول. يرجى التأكد من البيانات والمحاولة مجدداً.', 'error');
+          setLoading(false);
+          return;
         }
       } else {
         // Registration
@@ -334,18 +366,20 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
                 </div>
               )}
 
-              {/* Email */}
+              {/* Email / Student ID / Phone */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">البريد الإلكتروني</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  {isLogin ? 'كود الطالب / البريد الإلكتروني / رقم الهاتف' : 'البريد الإلكتروني'}
+                </label>
                 <div className="relative">
                   <Mail className="absolute right-3 top-2.5 w-5 h-5 text-slate-400" />
                   <input
-                    type="email"
+                    type={isLogin ? 'text' : 'email'}
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pr-10 pl-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 text-left outline-none"
-                    placeholder="example@mail.com"
+                    className="w-full pr-10 pl-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 text-right outline-none"
+                    placeholder={isLogin ? 'أدخل كود الطالب أو البريد أو الهاتف...' : 'example@mail.com'}
                   />
                 </div>
               </div>

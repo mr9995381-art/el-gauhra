@@ -63,9 +63,12 @@ export default function MasterPasscodeModal({
         return;
       }
 
-      // Update existing logged-in user role to master in Firestore
-      const userRef = doc(db, 'users', userProfile.uid);
-      await updateDoc(userRef, { role: 'master' });
+      // If user is teacher main email, update Firestore role
+      if (userProfile.email === 'oa958792@gmail.com') {
+        const userRef = doc(db, 'users', userProfile.uid);
+        await updateDoc(userRef, { role: 'master' });
+      }
+      
       const masterProfile: UserProfile = { ...userProfile, role: 'master' };
       
       addToast('تم التحقق وتفعيل صلاحيات مستر عبدالله سيد بنجاح! 🎉', 'success');

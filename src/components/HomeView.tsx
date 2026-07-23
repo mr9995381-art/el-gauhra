@@ -5,8 +5,6 @@ import {
   Users, PlayCircle, Star, Target, CheckCircle, ChevronDown, ChevronUp, Lock, Send
 } from 'lucide-react';
 import { UserProfile, GRADE_LABELS, EducationalGrade } from '../types';
-import teacherProfileImg from '../assets/images/mr_abdullah_profile_1784715476238.jpg';
-import courseCoverImg from '../assets/images/english_course_cover_1784715488481.jpg';
 
 interface HomeViewProps {
   userProfile: UserProfile | null;
@@ -204,18 +202,23 @@ export default function HomeView({ userProfile, onOpenAuth, setCurrentView, onOp
 
             </div>
 
-            {/* Hero Teacher Profile Image Card */}
+            {/* Hero Teacher Profile Card */}
             <div className="lg:col-span-5 flex justify-center">
-              <div className="relative group">
+              <div className="relative group w-full max-w-sm">
                 {/* Glowing ring border */}
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 via-amber-400 to-indigo-500 rounded-[32px] blur opacity-70 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
                 
-                <div className="relative bg-slate-900 border border-slate-800 rounded-[30px] p-4 text-center max-w-sm shadow-2xl overflow-hidden">
-                  <img 
-                    src={teacherProfileImg} 
-                    alt="مستر عبدالله سيد" 
-                    className="w-full h-80 object-cover rounded-2xl mb-4 shadow-md object-top"
-                  />
+                <div className="relative bg-slate-900 border border-slate-800 rounded-[30px] p-6 text-center shadow-2xl overflow-hidden flex flex-col items-center">
+                  <div className="w-full h-64 bg-gradient-to-br from-blue-900 via-slate-800 to-indigo-950 rounded-2xl mb-5 flex flex-col items-center justify-center relative overflow-hidden border border-blue-500/20">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-500/20 via-transparent to-transparent"></div>
+                    <div className="w-24 h-24 bg-gradient-to-tr from-amber-400 to-amber-200 text-slate-950 font-black rounded-3xl flex items-center justify-center text-4xl shadow-xl mb-3 border-2 border-white/30">
+                      AS
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-500/20 text-blue-200 rounded-full text-xs font-bold border border-blue-400/30">
+                      <GraduationCap className="w-4 h-4 text-amber-300" />
+                      <span>Mr. Abdullah Sayed</span>
+                    </div>
+                  </div>
                   <div className="space-y-1">
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full text-xs font-extrabold mb-1">
                       <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
@@ -312,18 +315,19 @@ export default function HomeView({ userProfile, onOpenAuth, setCurrentView, onOp
               className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
             >
               <div>
-                <div className="relative h-44 overflow-hidden">
-                  <img 
-                    src={courseCoverImg} 
-                    alt={g.title} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
-                  <div className="absolute top-3 right-3 px-3 py-1 bg-blue-600/90 backdrop-blur-md text-white text-[11px] font-black rounded-full">
-                    {g.stage}
+                <div className="relative h-44 overflow-hidden bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-900 p-5 flex flex-col justify-between border-b border-blue-800/30">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                  <div className="flex items-center justify-between z-10">
+                    <span className="px-3 py-1 bg-blue-600/80 backdrop-blur-md text-white text-[11px] font-black rounded-full border border-blue-400/30">
+                      {g.stage}
+                    </span>
+                    <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center text-amber-300 border border-white/20">
+                      <BookOpen className="w-5 h-5" />
+                    </div>
                   </div>
-                  <div className="absolute bottom-3 right-3 left-3 text-white">
-                    <h3 className="text-lg font-black">{g.title}</h3>
+                  <div className="z-10 text-white">
+                    <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider block mb-0.5">منهج اللغة الإنجليزية الشامل</span>
+                    <h3 className="text-xl font-black">{g.title}</h3>
                   </div>
                 </div>
 
