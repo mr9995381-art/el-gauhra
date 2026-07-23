@@ -174,10 +174,10 @@ export default function App() {
     if (!loadingAuth && userProfile) {
       if (userProfile.role === 'student') {
         const hash = window.location.hash.replace('#', '').toLowerCase();
-        if (currentView === 'master_dashboard' || hash.includes('master') || hash.includes('admin')) {
+        if (currentView === 'master_dashboard' || currentView === 'admin' || hash.includes('master') || hash.includes('admin')) {
           setCurrentView('student_dashboard');
           window.location.hash = 'student_dashboard';
-          addToast('تم توجيهك تلقائياً إلى لوحتك التعليمية.', 'info');
+          addToast('عذراً، هذا القسم خاص بإدارة المنصة ولا يمكن للطلاب الوصول إليه.', 'error');
         }
       }
     }
@@ -224,7 +224,7 @@ export default function App() {
         window.location.hash = 'student_dashboard';
         return;
       }
-      if (!userProfile || userProfile.role !== 'master') {
+      if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'master')) {
         setMasterModalOpen(true);
         return;
       }
@@ -343,7 +343,7 @@ export default function App() {
                 />
               )}
               {currentView === 'master_dashboard' && (
-                userProfile && userProfile.role === 'master' ? (
+                userProfile && (userProfile.role === 'admin' || userProfile.role === 'master') ? (
                   <MasterDashboard userProfile={userProfile} addToast={addToast} />
                 ) : (
                   <div className="py-20 text-center max-w-lg mx-auto px-4" dir="rtl">
@@ -393,10 +393,12 @@ export default function App() {
             onClose={() => setAuthModalOpen(false)}
             onSuccess={(profile) => {
               setUserProfile(profile);
-              if (profile.role === 'master' && profile.email === 'oa958792@gmail.com') {
+              if (profile.role === 'admin' || profile.role === 'master') {
                 setCurrentView('master_dashboard');
+                window.location.hash = 'master_dashboard';
               } else {
                 setCurrentView('student_dashboard');
+                window.location.hash = 'student_dashboard';
               }
             }}
             addToast={addToast}

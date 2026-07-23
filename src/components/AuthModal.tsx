@@ -53,18 +53,24 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
 
       if (userDocSnap.exists()) {
         const existingData = userDocSnap.data() as UserProfile;
-        let role = existingData.role;
-        if (existingData.email !== 'oa958792@gmail.com' && role === 'master') {
-          role = 'student';
-        }
-
+        // Keep existing role if present, otherwise default to 'student'
+        const role: 'student' | 'admin' | 'master' = existingData.role || 'student';
         const photoURL = user.photoURL || existingData.photoURL || '';
 
-        await updateDoc(userDocRef, {
+        const updates: Record<string, any> = {
           deviceSessionId,
           role,
           photoURL,
+        };
+
+        // Ensure no undefined values are sent to updateDoc
+        Object.keys(updates).forEach((key) => {
+          if (updates[key] === undefined) {
+            delete updates[key];
+          }
         });
+
+        await updateDoc(userDocRef, updates);
 
         profile = {
           ...existingData,
@@ -73,23 +79,32 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           photoURL,
         };
       } else {
-        // Create new account automatically
-        const role = user.email === 'oa958792@gmail.com' ? 'master' : 'student';
+        // New Google Sign-In user is strictly a student
+        const role: 'student' = 'student';
         profile = {
           uid,
-          name: user.displayName || 'مستخدم جديد',
+          name: user.displayName || 'طالب جديد',
           email: user.email || '',
           phone: user.phoneNumber || 'غير محدد',
+          parentPhone: '',
           grade: 'secondary_3',
           role,
           photoURL: user.photoURL || '',
-          subscriptionExpiresAt: role === 'master' ? '2099-12-31T23:59:59.000Z' : null,
-          subscriptionStatus: role === 'master' ? 'approved' : 'none',
+          subscriptionExpiresAt: null,
+          subscriptionStatus: 'none',
           activeCodeUsed: null,
           deviceSessionId,
           createdAt: new Date().toISOString(),
         };
-        await setDoc(userDocRef, profile);
+
+        const setPayload: Record<string, any> = { ...profile };
+        Object.keys(setPayload).forEach((key) => {
+          if (setPayload[key] === undefined) {
+            delete setPayload[key];
+          }
+        });
+
+        await setDoc(userDocRef, setPayload);
       }
 
       onSuccess(profile);
@@ -165,12 +180,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
             if (userDoc.exists()) {
               const profile = userDoc.data() as UserProfile;
               
-              // Ensure student role if not the main teacher account
-              let role = profile.role;
-              if (profile.email !== 'oa958792@gmail.com' && role === 'master') {
-                role = 'student';
-                await updateDoc(doc(db, 'users', uid), { role: 'student' });
-              }
+              const role: 'student' | 'admin' | 'master' = profile.role || (profile.email === 'oa958792@gmail.com' ? 'admin' : 'student');
 
               // Generate unique session ID for this device
               const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -179,7 +189,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
                 localStorage.removeItem('fallback_user_uid');
               }
 
-              // Update Firestore
+              // Update Firestore safely
               await updateDoc(doc(db, 'users', uid), { deviceSessionId, role });
               
               const updatedProfile = { ...profile, role, deviceSessionId };
@@ -240,10 +250,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           }
 
           if (matchedProfile) {
-            let role = (matchedProfile as UserProfile).role;
-            if ((matchedProfile as UserProfile).email !== 'oa958792@gmail.com' && role === 'master') {
-              role = 'student';
-            }
+            const role: 'student' | 'admin' | 'master' = (matchedProfile as UserProfile).role || ((matchedProfile as UserProfile).email === 'oa958792@gmail.com' ? 'admin' : 'student');
 
             const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
             localStorage.setItem('device_session_id', deviceSessionId);
@@ -288,10 +295,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
           const uid = userCred.user.uid;
           
-          // Check if role should be Master (based on special email)
-          let role: 'student' | 'master' = 'student';
+          // Check if role should be Admin (based on special email for password registration)
+          let role: 'student' | 'admin' | 'master' = 'student';
           if (cleanEmail === 'oa958792@gmail.com') {
-            role = 'master';
+            role = 'admin';
           }
 
           const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -302,21 +309,28 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
             name: name.trim(),
             email: cleanEmail,
             phone: phone.trim(),
-            parentPhone: parentPhone.trim(),
-            grade,
+            parentPhone: parentPhone.trim() || '',
+            grade: grade || 'secondary_3',
             role,
-            subscriptionStatus: role === 'master' ? 'approved' : 'none',
-            subscriptionExpiresAt: role === 'master' ? '2099-12-31T23:59:59.000Z' : null,
+            subscriptionStatus: role !== 'student' ? 'approved' : 'none',
+            subscriptionExpiresAt: role !== 'student' ? '2099-12-31T23:59:59.000Z' : null,
             activeCodeUsed: null,
             deviceSessionId,
             createdAt: new Date().toISOString(),
           };
 
-          await setDoc(doc(db, 'users', uid), newProfile);
+          const setPayload: Record<string, any> = { ...newProfile };
+          Object.keys(setPayload).forEach((key) => {
+            if (setPayload[key] === undefined) {
+              delete setPayload[key];
+            }
+          });
+
+          await setDoc(doc(db, 'users', uid), setPayload);
           onSuccess(newProfile);
           
-          if (role === 'master') {
-            addToast('تم إنشاء حساب مستر عبدالله سيد بنجاح!', 'success');
+          if (role !== 'student') {
+            addToast('تم إنشاء حساب إدارة المنصة بنجاح!', 'success');
           } else {
             addToast(`مرحباً بك ${name.trim()} في منصة مستر عبدالله سيد!`, 'success');
           }
@@ -341,9 +355,9 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
 
             const fallbackUid = 'fallback_' + Math.random().toString(36).substring(2, 15);
             
-            let role: 'student' | 'master' = 'student';
+            let role: 'student' | 'admin' | 'master' = 'student';
             if (cleanEmail === 'oa958792@gmail.com') {
-              role = 'master';
+              role = 'admin';
             }
 
             const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -355,22 +369,29 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
               name: name.trim(),
               email: cleanEmail,
               phone: phone.trim(),
-              parentPhone: parentPhone.trim(),
-              grade,
+              parentPhone: parentPhone.trim() || '',
+              grade: grade || 'secondary_3',
               role,
-              subscriptionStatus: role === 'master' ? 'approved' : 'none',
-              subscriptionExpiresAt: role === 'master' ? '2099-12-31T23:59:59.000Z' : null,
+              subscriptionStatus: role !== 'student' ? 'approved' : 'none',
+              subscriptionExpiresAt: role !== 'student' ? '2099-12-31T23:59:59.000Z' : null,
               activeCodeUsed: null,
               deviceSessionId,
               createdAt: new Date().toISOString(),
               fallbackPassword: password
             };
 
-            await setDoc(doc(db, 'users', fallbackUid), newProfile);
+            const setPayload: Record<string, any> = { ...newProfile };
+            Object.keys(setPayload).forEach((key) => {
+              if (setPayload[key] === undefined) {
+                delete setPayload[key];
+              }
+            });
+
+            await setDoc(doc(db, 'users', fallbackUid), setPayload);
             onSuccess(newProfile);
 
-            if (role === 'master') {
-              addToast('تم إنشاء حساب مستر عبدالله سيد بنجاح!', 'success');
+            if (role !== 'student') {
+              addToast('تم إنشاء حساب إدارة المنصة بنجاح!', 'success');
             } else {
               addToast(`مرحباً بك ${name.trim()} في منصة مستر عبدالله سيد!`, 'success');
             }

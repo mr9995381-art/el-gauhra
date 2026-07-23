@@ -41,7 +41,7 @@ export default function MasterPasscodeModal({
 
     try {
       if (!userProfile) {
-        // Automatic master login for guest
+        // Automatic master admin login for guest
         const masterUid = 'fallback_master_admin_account';
         const masterProfile: UserProfile = {
           uid: masterUid,
@@ -49,29 +49,28 @@ export default function MasterPasscodeModal({
           email: 'oa958792@gmail.com',
           phone: '+201102140676',
           grade: 'secondary_3',
-          role: 'master',
-          subscriptionExpiresAt: null,
+          role: 'admin',
+          subscriptionExpiresAt: '2099-12-31T23:59:59.000Z',
+          subscriptionStatus: 'approved',
           activeCodeUsed: null,
           deviceSessionId: null,
           createdAt: new Date().toISOString()
         };
         localStorage.setItem('fallback_user_uid', masterUid);
         await setDoc(doc(db, 'users', masterUid), masterProfile, { merge: true });
-        addToast('تم التحقق وتسجيل دخولك بصفة المستر بنجاح! 🎉', 'success');
+        addToast('تم التحقق وتسجيل دخولك بصفة المسؤول بنجاح! 🎉', 'success');
         onSuccess(masterProfile);
         onClose();
         return;
       }
 
-      // If user is teacher main email, update Firestore role
-      if (userProfile.email === 'oa958792@gmail.com') {
-        const userRef = doc(db, 'users', userProfile.uid);
-        await updateDoc(userRef, { role: 'master' });
-      }
+      // Update Firestore role to admin
+      const userRef = doc(db, 'users', userProfile.uid);
+      await updateDoc(userRef, { role: 'admin' });
       
-      const masterProfile: UserProfile = { ...userProfile, role: 'master' };
+      const masterProfile: UserProfile = { ...userProfile, role: 'admin' };
       
-      addToast('تم التحقق وتفعيل صلاحيات مستر عبدالله سيد بنجاح! 🎉', 'success');
+      addToast('تم التحقق وتفعيل صلاحيات المسؤول بنجاح! 🎉', 'success');
       onSuccess(masterProfile);
       onClose();
     } catch (err) {

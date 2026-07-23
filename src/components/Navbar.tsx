@@ -77,7 +77,7 @@ export default function Navbar({
             {/* Stealth Master Access Icon Button (Blends into header background) */}
             <button
               onClick={() => {
-                if (userProfile?.role === 'master') {
+                if (userProfile?.role === 'admin' || userProfile?.role === 'master') {
                   handleNavClick('master_dashboard');
                 } else if (onOpenMasterAccess) {
                   onOpenMasterAccess();
@@ -106,7 +106,7 @@ export default function Navbar({
 
             {userProfile ? (
               <div className="flex items-center gap-3">
-                {userProfile.role === 'master' && (
+                {(userProfile.role === 'admin' || userProfile.role === 'master') && (
                   <>
                     <button
                       onClick={() => handleNavClick('student_dashboard')}
@@ -213,7 +213,7 @@ export default function Navbar({
           <hr className="border-slate-200 dark:border-slate-800 my-2" />
           {userProfile ? (
             <div className="space-y-2 pt-2">
-              {userProfile.role === 'master' && (
+              {(userProfile.role === 'admin' || userProfile.role === 'master') && (
                 <button
                   onClick={() => handleNavClick('student_dashboard')}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-base font-bold text-blue-700 border border-blue-100 dark:border-blue-950 bg-blue-50/50 dark:bg-blue-950/20 rounded-full"
@@ -223,11 +223,11 @@ export default function Navbar({
                 </button>
               )}
               <button
-                onClick={() => handleNavClick(userProfile.role === 'master' ? 'master_dashboard' : 'student_dashboard')}
+                onClick={() => handleNavClick((userProfile.role === 'admin' || userProfile.role === 'master') ? 'master_dashboard' : 'student_dashboard')}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-base font-bold text-white bg-blue-700 rounded-full"
               >
-                {userProfile.role === 'master' ? <ShieldAlert className="w-5 h-5" /> : <User className="w-5 h-5" />}
-                {userProfile.role === 'master' ? 'لوحة تحكم المستر' : 'لوحتي التعليمية'}
+                {(userProfile.role === 'admin' || userProfile.role === 'master') ? <ShieldAlert className="w-5 h-5" /> : <User className="w-5 h-5" />}
+                {(userProfile.role === 'admin' || userProfile.role === 'master') ? 'لوحة تحكم المستر' : 'لوحتي التعليمية'}
               </button>
               {/* Removed master gate button from mobile menu */}
               <button

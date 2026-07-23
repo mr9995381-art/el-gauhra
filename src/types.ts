@@ -22,7 +22,7 @@ export interface UserProfile {
   phone: string;
   parentPhone?: string;
   grade: EducationalGrade;
-  role: 'student' | 'master';
+  role: 'student' | 'master' | 'admin';
   subscriptionStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'expired';
   subscriptionExpiresAt: string | null; // ISO string
   activeCodeUsed: string | null;
