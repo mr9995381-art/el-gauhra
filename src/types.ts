@@ -27,6 +27,7 @@ export interface UserProfile {
   subscriptionExpiresAt: string | null; // ISO string
   activeCodeUsed: string | null;
   deviceSessionId: string | null;
+  photoURL?: string;
   createdAt: string;
 }
 
