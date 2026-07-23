@@ -127,6 +127,7 @@ export default function StudentDashboard({
   }, [userProfile.uid]);
 
   const fetchSubRequest = async () => {
+    if (!userProfile || !userProfile.uid) return;
     try {
       const q = query(
         collection(db, 'subscription_requests'),
@@ -137,11 +138,16 @@ export default function StudentDashboard({
         setUserSubReq({ id: snap.docs[0].id, ...snap.docs[0].data() } as SubscriptionRequest);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching subscription request from Firestore:', err);
     }
   };
 
   const handleSendSubscriptionRequest = async () => {
+    if (!userProfile || !userProfile.uid) {
+      addToast('عذراً، يجب تسجيل الدخول أولاً لإرسال طلب الاشتراك.', 'error');
+      return;
+    }
+
     setSubmittingReq(true);
     try {
       const reqId = `${userProfile.uid}_sub_req`;
@@ -154,18 +160,28 @@ export default function StudentDashboard({
         ? (EDUCATION_STAGE_LABELS[userProfile.educationStage as keyof typeof EDUCATION_STAGE_LABELS] || userProfile.educationStage)
         : 'المرحلة الثانوية';
 
-      const reqData: SubscriptionRequest = {
+      const rawReqData = {
         id: reqId,
         studentUid: userProfile.uid,
-        studentName: userProfile.name,
-        studentPhone: userProfile.phone,
+        studentName: userProfile.name || 'طالب',
+        studentPhone: userProfile.phone || 'غير محدد',
         parentPhone: userProfile.parentPhone || '',
         educationSystem: sysLabel,
         educationStage: stgLabel,
-        grade: userProfile.grade,
-        status: 'pending',
+        grade: userProfile.grade || 'secondary_1',
+        status: 'pending' as const,
         requestedAt: new Date().toISOString(),
       };
+
+      // Strip any undefined keys to avoid Firestore unsupported field errors
+      const reqData: Record<string, any> = {};
+      Object.keys(rawReqData).forEach((key) => {
+        const val = (rawReqData as any)[key];
+        if (val !== undefined) {
+          reqData[key] = val;
+        }
+      });
+
       await setDoc(reqRef, reqData);
 
       await updateDoc(doc(db, 'users', userProfile.uid), {
@@ -177,11 +193,12 @@ export default function StudentDashboard({
         subscriptionStatus: 'pending',
       });
 
-      setUserSubReq(reqData);
+      setUserSubReq(reqData as SubscriptionRequest);
       addToast('تم إرسال طلب الاشتراك بنجاح! سينظر المستر فيه ويقوم بتفعيل حسابك.', 'success');
-    } catch (err) {
-      console.error(err);
-      addToast('حدث خطأ أثناء إرسال طلب الاشتراك.', 'error');
+    } catch (err: any) {
+      console.error('Firestore subscription request error details:', err);
+      const errorMessage = err?.message || 'حدث خطأ في الاتصال بقاعدة البيانات';
+      addToast(`فشل إرسال طلب الاشتراك: ${errorMessage}`, 'error');
     } finally {
       setSubmittingReq(false);
     }

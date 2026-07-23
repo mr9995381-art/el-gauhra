@@ -52,6 +52,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /subscription_requests/{requestId} {
+      allow read, write: if true;
+    }
+
     // Student Progress
     match /studentProgress/{id} {
       allow read, write: if true;
