@@ -74,7 +74,23 @@ export default function Navbar({
           <div className="hidden md:flex items-center gap-4">
             <ThemeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
 
-            {/* Master Access Button: Only shown for unauthenticated guests so Master can unlock admin mode */}
+            {/* Stealth Master Access Icon Button (Blends into header background) */}
+            <button
+              onClick={() => {
+                if (userProfile?.role === 'master') {
+                  handleNavClick('master_dashboard');
+                } else if (onOpenMasterAccess) {
+                  onOpenMasterAccess();
+                }
+              }}
+              className="p-2 text-slate-300 dark:text-slate-700 hover:text-amber-500 dark:hover:text-amber-400 transition-colors rounded-xl cursor-pointer opacity-50 hover:opacity-100"
+              title="دخول مستر عبدالله سيد (خاص بالإدارة)"
+              aria-label="Master Access"
+            >
+              <ShieldAlert className="w-4.5 h-4.5" />
+            </button>
+
+            {/* Master Access Button for guests */}
             {!userProfile && (
               <button
                 onClick={() => {
@@ -149,9 +165,24 @@ export default function Navbar({
             )}
           </div>
 
-          {/* Mobile menu button & Theme toggle */}
-          <div className="flex items-center gap-3 md:hidden">
-            {/* Removed mobile master gate lock button */}
+          {/* Mobile header controls */}
+          <div className="flex items-center gap-2 md:hidden">
+            {/* Stealth Master Access Icon for Mobile Header Bar */}
+            <button
+              onClick={() => {
+                if (userProfile?.role === 'master') {
+                  handleNavClick('master_dashboard');
+                } else if (onOpenMasterAccess) {
+                  onOpenMasterAccess();
+                }
+              }}
+              className="p-2 text-slate-300 dark:text-slate-700 hover:text-amber-500 dark:hover:text-amber-400 transition-colors rounded-xl cursor-pointer opacity-40 hover:opacity-100"
+              title="دخول مستر عبدالله سيد (خاص)"
+              aria-label="Master Access Mobile"
+            >
+              <ShieldAlert className="w-4 h-4" />
+            </button>
+
             <ThemeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
             <button
               onClick={() => setIsOpen(!isOpen)}
@@ -217,11 +248,21 @@ export default function Navbar({
                   onOpenAuth();
                   setIsOpen(false);
                 }}
-                className="w-full py-2.5 text-center text-base font-bold text-white bg-blue-700 rounded-full shadow-lg shadow-blue-200/50 dark:shadow-none"
+                className="w-full py-2.5 text-center text-base font-bold text-white bg-blue-700 rounded-full shadow-lg shadow-blue-200/50 dark:shadow-none cursor-pointer"
               >
                 تسجيل الدخول / الاشتراك
               </button>
-              {/* Removed anonymous master gate button from mobile menu */}
+
+              <button
+                onClick={() => {
+                  if (onOpenMasterAccess) onOpenMasterAccess();
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center justify-between px-4 py-2 text-xs font-bold text-slate-400 dark:text-slate-600 hover:text-amber-500 transition-colors rounded-xl border border-dashed border-slate-200 dark:border-slate-800 cursor-pointer"
+              >
+                <span>دخول مستر عبدالله (رمز الدخول)</span>
+                <ShieldAlert className="w-4 h-4 text-amber-500/70" />
+              </button>
             </div>
           )}
         </div>
