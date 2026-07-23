@@ -57,10 +57,20 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
         const role: 'student' | 'admin' | 'master' = existingData.role || 'student';
         const photoURL = user.photoURL || existingData.photoURL || '';
 
+        // Check if profile is complete (must have name, phone, parentPhone, educationSystem, educationStage, grade)
+        const isProfileComplete = Boolean(
+          existingData.isProfileComplete &&
+          existingData.name &&
+          existingData.phone &&
+          existingData.phone !== 'غير محدد' &&
+          existingData.parentPhone
+        );
+
         const updates: Record<string, any> = {
           deviceSessionId,
           role,
           photoURL,
+          isProfileComplete,
         };
 
         // Ensure no undefined values are sent to updateDoc
@@ -77,9 +87,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           role,
           deviceSessionId,
           photoURL,
+          isProfileComplete,
         };
       } else {
-        // New Google Sign-In user is strictly a student
+        // New Google Sign-In user is strictly a student and requires profile setup
         const role: 'student' = 'student';
         profile = {
           uid,
@@ -87,7 +98,9 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           email: user.email || '',
           phone: user.phoneNumber || 'غير محدد',
           parentPhone: '',
-          grade: 'secondary_3',
+          educationSystem: 'general',
+          educationStage: 'secondary',
+          grade: 'secondary_1',
           role,
           photoURL: user.photoURL || '',
           subscriptionExpiresAt: null,
@@ -95,6 +108,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           activeCodeUsed: null,
           deviceSessionId,
           createdAt: new Date().toISOString(),
+          isProfileComplete: false,
         };
 
         const setPayload: Record<string, any> = { ...profile };

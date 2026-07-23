@@ -15,6 +15,7 @@ import StudentDashboard from './components/StudentDashboard';
 import MasterDashboard from './components/MasterDashboard';
 import AuthModal from './components/AuthModal';
 import MasterPasscodeModal from './components/MasterPasscodeModal';
+import { StudentOnboardingModal } from './components/StudentOnboardingModal';
 import ToastContainer, { Toast } from './components/NotificationToast';
 import { Bell, AlertTriangle, Phone, HelpCircle, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -423,6 +424,20 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* Mandatory Student Profile Onboarding Setup Modal */}
+      {userProfile && userProfile.role === 'student' && !userProfile.isProfileComplete && (
+        <StudentOnboardingModal
+          userProfile={userProfile}
+          onComplete={(updatedProfile) => {
+            setUserProfile(updatedProfile);
+            fetchStudentAnnouncements(updatedProfile.grade);
+            setCurrentView('student_dashboard');
+            window.location.hash = 'student_dashboard';
+          }}
+          addToast={addToast}
+        />
+      )}
 
       {/* Toast Alert Notifications */}
       <ToastContainer toasts={toasts} removeToast={removeToast} />

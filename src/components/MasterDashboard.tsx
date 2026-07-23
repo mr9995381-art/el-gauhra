@@ -186,7 +186,7 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
 
   const fetchSubscriptionRequests = async () => {
     try {
-      const snap = await getDocs(query(collection(db, 'subscriptionRequests'), orderBy('requestedAt', 'desc')));
+      const snap = await getDocs(query(collection(db, 'subscription_requests'), orderBy('requestedAt', 'desc')));
       const list: SubscriptionRequest[] = [];
       snap.forEach((d) => {
         list.push({ id: d.id, ...d.data() } as SubscriptionRequest);
@@ -202,7 +202,7 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
       const now = new Date();
       const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      await updateDoc(doc(db, 'subscriptionRequests', req.id), {
+      await updateDoc(doc(db, 'subscription_requests', req.id), {
         status: 'approved',
         approvedAt: now.toISOString(),
       });
@@ -224,7 +224,7 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
 
   const handleRejectSubscriptionRequest = async (req: SubscriptionRequest) => {
     try {
-      await updateDoc(doc(db, 'subscriptionRequests', req.id), {
+      await updateDoc(doc(db, 'subscription_requests', req.id), {
         status: 'rejected',
       });
 
@@ -2061,6 +2061,20 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
                         </div>
 
                         <div className="text-xs space-y-2 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-100/50 dark:border-slate-800">
+                          {req.educationSystem && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-400 font-bold">نظام التعليم:</span>
+                              <span className="font-bold text-slate-700 dark:text-slate-300">{req.educationSystem}</span>
+                            </div>
+                          )}
+
+                          {req.educationStage && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-400 font-bold">المرحلة:</span>
+                              <span className="font-bold text-slate-700 dark:text-slate-300">{req.educationStage}</span>
+                            </div>
+                          )}
+
                           <div className="flex justify-between items-center">
                             <span className="text-slate-400 font-bold">الصف الدراسي:</span>
                             <span className="font-extrabold text-blue-600 dark:text-blue-400">{GRADE_LABELS[req.grade]}</span>

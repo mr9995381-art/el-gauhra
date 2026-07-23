@@ -6,6 +6,21 @@ export type EducationalGrade =
   | 'secondary_2'
   | 'secondary_3';
 
+export type EducationSystem = 'general' | 'azhar' | 'languages' | 'other';
+export type EducationStage = 'prep' | 'secondary';
+
+export const EDUCATION_SYSTEM_LABELS: Record<EducationSystem, string> = {
+  general: 'التعليم العام (حكومي / خاص)',
+  azhar: 'التعليم الأزهري',
+  languages: 'مدارس اللغات (تجريبي / خاص)',
+  other: 'أنظمة أخرى',
+};
+
+export const EDUCATION_STAGE_LABELS: Record<EducationStage, string> = {
+  prep: 'المرحلة الإعدادية',
+  secondary: 'المرحلة الثانوية',
+};
+
 export const GRADE_LABELS: Record<EducationalGrade, string> = {
   prep_1: 'الصف الأول الإعدادي',
   prep_2: 'الصف الثاني الإعدادي',
@@ -21,6 +36,8 @@ export interface UserProfile {
   email: string;
   phone: string;
   parentPhone?: string;
+  educationSystem?: EducationSystem | string;
+  educationStage?: EducationStage | string;
   grade: EducationalGrade;
   role: 'student' | 'master' | 'admin';
   subscriptionStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'expired';
@@ -29,6 +46,7 @@ export interface UserProfile {
   deviceSessionId: string | null;
   photoURL?: string;
   createdAt: string;
+  isProfileComplete?: boolean;
 }
 
 export interface SubscriptionRequest {
@@ -37,6 +55,8 @@ export interface SubscriptionRequest {
   studentName: string;
   studentPhone: string;
   parentPhone?: string;
+  educationSystem?: string;
+  educationStage?: string;
   grade: EducationalGrade;
   status: 'pending' | 'approved' | 'rejected';
   requestedAt: string;

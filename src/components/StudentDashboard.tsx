@@ -15,6 +15,8 @@ import {
 import {
   EducationalGrade,
   GRADE_LABELS,
+  EDUCATION_SYSTEM_LABELS,
+  EDUCATION_STAGE_LABELS,
   UserProfile,
   SubscriptionRequest,
   Course,
@@ -127,7 +129,7 @@ export default function StudentDashboard({
   const fetchSubRequest = async () => {
     try {
       const q = query(
-        collection(db, 'subscriptionRequests'),
+        collection(db, 'subscription_requests'),
         where('studentUid', '==', userProfile.uid)
       );
       const snap = await getDocs(q);
@@ -143,13 +145,23 @@ export default function StudentDashboard({
     setSubmittingReq(true);
     try {
       const reqId = `${userProfile.uid}_sub_req`;
-      const reqRef = doc(db, 'subscriptionRequests', reqId);
+      const reqRef = doc(db, 'subscription_requests', reqId);
+      
+      const sysLabel = userProfile.educationSystem 
+        ? (EDUCATION_SYSTEM_LABELS[userProfile.educationSystem as keyof typeof EDUCATION_SYSTEM_LABELS] || userProfile.educationSystem)
+        : 'التعليم العام';
+      const stgLabel = userProfile.educationStage
+        ? (EDUCATION_STAGE_LABELS[userProfile.educationStage as keyof typeof EDUCATION_STAGE_LABELS] || userProfile.educationStage)
+        : 'المرحلة الثانوية';
+
       const reqData: SubscriptionRequest = {
         id: reqId,
         studentUid: userProfile.uid,
         studentName: userProfile.name,
         studentPhone: userProfile.phone,
         parentPhone: userProfile.parentPhone || '',
+        educationSystem: sysLabel,
+        educationStage: stgLabel,
         grade: userProfile.grade,
         status: 'pending',
         requestedAt: new Date().toISOString(),
@@ -654,15 +666,6 @@ export default function StudentDashboard({
                   <span>{submittingReq ? 'جاري الإرسال...' : 'إرسال طلب الاشتراك للمستر الآن'}</span>
                 </button>
               )}
-
-              <a
-                href={`https://wa.me/201102140676?text=${encodeURIComponent(`أهلاً مستر عبدالله، أنا الطالب ${userProfile.name} بالصف ${GRADE_LABELS[userProfile.grade]}، أرغب في تفعيل اشتراكي بالمنصة.`)}`}
-                target="_blank"
-                referrerPolicy="no-referrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow transition-all"
-              >
-                تواصل مع المستر عبر الواتساب
-              </a>
             </div>
           </div>
         )}
