@@ -150,6 +150,16 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
   const [newSubExpiry, setNewSubExpiry] = useState('');
   const [seeding, setSeeding] = useState(false);
 
+  // Confirmation Modal State (bypasses iframe window.confirm blocks)
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
+  const [isDeletingStudent, setIsDeletingStudent] = useState(false);
+
   const handleForceSeed = async () => {
     setSeeding(true);
     addToast('جاري تهيئة البيانات الافتراضية والدروس النموذجية على المنصة...', 'info');
@@ -677,52 +687,88 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
   };
 
   // Delete Course
-  const handleDeleteCourse = async (id: string) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذا الكورس وجميع الوحدات والدروس الملحقة به نهائياً؟')) return;
-    try {
-      await deleteDoc(doc(db, 'courses', id));
-      addToast('تم حذف الكورس بنجاح.', 'success');
-      fetchCourses();
-      fetchStats();
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDeleteCourse = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'حذف الكورس',
+      message: 'هل أنت متأكد من حذف هذا الكورس وجميع الوحدات والدروس الملحقة به نهائياً؟',
+      confirmText: 'حذف الكورس',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'courses', id));
+          addToast('تم حذف الكورس بنجاح.', 'success');
+          fetchCourses();
+          fetchStats();
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setConfirmModal(null);
+        }
+      }
+    });
   };
 
   // Delete Unit
-  const handleDeleteUnit = async (id: string) => {
-    if (!window.confirm('هل تريد حذف هذه الوحدة؟')) return;
-    try {
-      await deleteDoc(doc(db, 'units', id));
-      addToast('تم حذف الوحدة.', 'success');
-      fetchUnits();
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDeleteUnit = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'حذف الوحدة',
+      message: 'هل تريد حذف هذه الوحدة؟',
+      confirmText: 'حذف الوحدة',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'units', id));
+          addToast('تم حذف الوحدة.', 'success');
+          fetchUnits();
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setConfirmModal(null);
+        }
+      }
+    });
   };
 
   // Delete Lesson
-  const handleDeleteLesson = async (id: string) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذا الدرس؟')) return;
-    try {
-      await deleteDoc(doc(db, 'lessons', id));
-      addToast('تم حذف الدرس بنجاح.', 'success');
-      fetchLessons();
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDeleteLesson = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'حذف الدرس',
+      message: 'هل أنت متأكد من حذف هذا الدرس؟',
+      confirmText: 'حذف الدرس',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'lessons', id));
+          addToast('تم حذف الدرس بنجاح.', 'success');
+          fetchLessons();
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setConfirmModal(null);
+        }
+      }
+    });
   };
 
   // Delete Test
-  const handleDeleteTest = async (id: string) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذا الاختبار نهائياً؟')) return;
-    try {
-      await deleteDoc(doc(db, 'tests', id));
-      addToast('تم حذف الاختبار بنجاح.', 'success');
-      fetchTests();
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDeleteTest = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'حذف الاختبار',
+      message: 'هل أنت متأكد من حذف هذا الاختبار نهائياً؟',
+      confirmText: 'حذف الاختبار',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'tests', id));
+          addToast('تم حذف الاختبار بنجاح.', 'success');
+          fetchTests();
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setConfirmModal(null);
+        }
+      }
+    });
   };
 
   // Add Announcement
@@ -804,6 +850,73 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
       console.error(err);
       addToast('حدث خطأ أثناء تفعيل الاشتراك.', 'error');
     }
+  };
+
+  // Remove student, enrollment, and all associated data with a single button press
+  const handleRemoveStudent = (student: UserProfile) => {
+    setConfirmModal({
+      isOpen: true,
+      title: `حذف الطالب (${student.name})`,
+      message: `هل أنت متأكد من حذف الطالب (${student.name}) نهائياً من المنصة؟\nسيتم إزالة حسابه، اشتراكه، نتائجه، وسجل تقدمه فوراً بضغطة واحدة.`,
+      confirmText: 'نعم، احذف الطالب',
+      onConfirm: async () => {
+        try {
+          setIsDeletingStudent(true);
+          // 1. Delete user record in Firestore
+          await deleteDoc(doc(db, 'users', student.uid));
+
+          // 2. Delete subscription requests for this student (both collection name variations)
+          const subReqsQuery = query(collection(db, 'subscription_requests'), where('studentUid', '==', student.uid));
+          const subReqsSnap = await getDocs(subReqsQuery);
+          const subReqDeletes = subReqsSnap.docs.map((d) => deleteDoc(d.ref));
+
+          const subReqsQuery2 = query(collection(db, 'subscriptionRequests'), where('studentUid', '==', student.uid));
+          const subReqsSnap2 = await getDocs(subReqsQuery2);
+          const subReqDeletes2 = subReqsSnap2.docs.map((d) => deleteDoc(d.ref));
+
+          // 3. Delete test results for this student
+          const testResQuery = query(collection(db, 'testResults'), where('studentId', '==', student.uid));
+          const testResSnap = await getDocs(testResQuery);
+          const testResDeletes = testResSnap.docs.map((d) => deleteDoc(d.ref));
+
+          // 4. Delete student progress
+          const progQuery = query(collection(db, 'studentProgress'), where('studentId', '==', student.uid));
+          const progSnap = await getDocs(progQuery);
+          const progDeletes = progSnap.docs.map((d) => deleteDoc(d.ref));
+
+          // 5. Reset subscription codes used by this student
+          const codeQuery = query(collection(db, 'subscriptionCodes'), where('usedBy', '==', student.uid));
+          const codeSnap = await getDocs(codeQuery);
+          const codeUpdates = codeSnap.docs.map((d) =>
+            updateDoc(d.ref, {
+              status: 'active',
+              usedAt: null,
+              usedBy: null,
+              usedByName: null,
+            })
+          );
+
+          await Promise.all([...subReqDeletes, ...subReqDeletes2, ...testResDeletes, ...progDeletes, ...codeUpdates]);
+
+          addToast(`تم حذف الطالب ${student.name} وإلغاء كافة بياناته واشتراكه بنجاح!`, 'success');
+
+          if (editingStudent && editingStudent.uid === student.uid) {
+            setEditingStudent(null);
+          }
+
+          fetchStudents();
+          fetchStats();
+          fetchSubscriptionRequests();
+          fetchCodes();
+        } catch (err) {
+          console.error(err);
+          addToast('حدث خطأ أثناء حذف الطالب.', 'error');
+        } finally {
+          setIsDeletingStudent(false);
+          setConfirmModal(null);
+        }
+      }
+    });
   };
 
   return (
@@ -1878,6 +1991,14 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
                                      <Edit className="w-3.5 h-3.5" />
                                      خيارات أخرى
                                    </button>
+                                   <button
+                                     onClick={() => handleRemoveStudent(s)}
+                                     className="flex items-center gap-1 px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all shadow cursor-pointer"
+                                     title="حذف الطالب وإلغاء تسجيله واشتراكه بالكامل"
+                                   >
+                                     <Trash2 className="w-3.5 h-3.5" />
+                                     حذف الطالب
+                                   </button>
                                  </div>
                                </td>
                              </tr>
@@ -1938,14 +2059,24 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
                          className="w-full px-3 py-2 border rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm outline-none"
                        />
                      </div>
-                     <div className="flex gap-2 justify-between items-center pt-2">
-                       <button
-                         type="button"
-                         onClick={() => quickActivateStudentSub(editingStudent, 0)}
-                         className="px-3 py-2 text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl cursor-pointer"
-                       >
-                         إلغاء الاشتراك
-                       </button>
+                     <div className="flex flex-wrap gap-2 justify-between items-center pt-2">
+                       <div className="flex gap-1.5">
+                         <button
+                           type="button"
+                           onClick={() => quickActivateStudentSub(editingStudent, 0)}
+                           className="px-3 py-2 text-xs bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold rounded-xl cursor-pointer"
+                         >
+                           إلغاء الاشتراك
+                         </button>
+                         <button
+                           type="button"
+                           onClick={() => handleRemoveStudent(editingStudent)}
+                           className="px-3 py-2 text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl cursor-pointer flex items-center gap-1"
+                         >
+                           <Trash2 className="w-3.5 h-3.5" />
+                           حذف نهائي
+                         </button>
+                       </div>
 
                        <div className="flex gap-2">
                          <button
@@ -2276,12 +2407,24 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
                         </span>
                       </div>
                       <button
-                        onClick={async () => {
-                          if (window.confirm('هل تريد حذف هذا الإعلان؟')) {
-                            await deleteDoc(doc(db, 'announcements', ann.id));
-                            addToast('تم حذف الإعلان.', 'success');
-                            fetchAnnouncements();
-                          }
+                        onClick={() => {
+                          setConfirmModal({
+                            isOpen: true,
+                            title: 'حذف الإعلان',
+                            message: 'هل تريد حذف هذا الإعلان؟',
+                            confirmText: 'حذف الإعلان',
+                            onConfirm: async () => {
+                              try {
+                                await deleteDoc(doc(db, 'announcements', ann.id));
+                                addToast('تم حذف الإعلان.', 'success');
+                                fetchAnnouncements();
+                              } catch (err) {
+                                console.error(err);
+                              } finally {
+                                setConfirmModal(null);
+                              }
+                            }
+                          });
                         }}
                         className="p-1.5 text-rose-500 hover:bg-rose-100 rounded-lg shrink-0 cursor-pointer"
                       >
@@ -2296,6 +2439,50 @@ export default function MasterDashboard({ userProfile, addToast }: MasterDashboa
         )}
 
       </div>
+
+      {/* Universal Custom Confirmation Modal (Bypasses iframe window.confirm issues) */}
+      {confirmModal && confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn" dir="rtl">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+              <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                {confirmModal.title}
+              </h3>
+            </div>
+
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+              {confirmModal.message}
+            </p>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                disabled={isDeletingStudent}
+                onClick={() => setConfirmModal(null)}
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingStudent}
+                onClick={async () => {
+                  if (confirmModal.onConfirm) {
+                    await confirmModal.onConfirm();
+                  }
+                }}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
+              >
+                {isDeletingStudent && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
+                <span>{confirmModal.confirmText || 'تأكيد الحذف'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
