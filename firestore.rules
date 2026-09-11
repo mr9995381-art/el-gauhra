@@ -60,6 +60,16 @@ service cloud.firestore {
     match /studentProgress/{id} {
       allow read, write: if true;
     }
+
+    // Lesson Q&A Comments
+    match /lessonComments/{id} {
+      allow read, write: if true;
+    }
+
+    // Student personal notes
+    match /studentNotes/{id} {
+      allow read, write: if true;
+    }
   }
 }
 

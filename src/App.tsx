@@ -17,7 +17,8 @@ import AuthModal from './components/AuthModal';
 import MasterPasscodeModal from './components/MasterPasscodeModal';
 import { StudentOnboardingModal } from './components/StudentOnboardingModal';
 import ToastContainer, { Toast } from './components/NotificationToast';
-import { Bell, AlertTriangle, Phone, HelpCircle, Lock } from 'lucide-react';
+import CoursePlayer from './components/CoursePlayer';
+import { Bell, AlertTriangle, Phone, HelpCircle, Lock, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { seedInitialDataIfEmpty } from './lib/seeder';
 
@@ -29,6 +30,14 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [loadingAuth, setLoadingAuth] = useState(true);
+
+  // Direct course player route parameters (e.g. /course-player/:courseId?unit=1&lesson=0&lessonId=200)
+  const [coursePlayerParams, setCoursePlayerParams] = useState<{
+    courseId: string;
+    unit?: number;
+    lesson?: number;
+    lessonId?: string;
+  } | null>(null);
 
   // Student specific announcements list
   const [activeAnnouncements, setActiveAnnouncements] = useState<Announcement[]>([]);
@@ -53,21 +62,54 @@ export default function App() {
     // Seed requested lesson for Prep 1
     seedInitialDataIfEmpty();
 
-    // Check URL hash on initial load
-    const hash = window.location.hash.replace('#', '');
-    if (hash && ['home', 'courses', 'about', 'contact', 'faq', 'privacy', 'terms', 'student_dashboard', 'master_dashboard'].includes(hash)) {
-      setCurrentView(hash);
-    }
+    const parseHashAndUrl = () => {
+      const fullHash = window.location.hash.replace('#', '');
+      const pathname = window.location.pathname;
 
-    const handleHashChange = () => {
-      const newHash = window.location.hash.replace('#', '');
-      if (newHash && ['home', 'courses', 'about', 'contact', 'faq', 'privacy', 'terms', 'student_dashboard', 'master_dashboard'].includes(newHash)) {
-        setCurrentView(newHash);
+      // Handle course-player URL / hash format (e.g. /course-player/4963b9fb-4582-4402-8c61-7cfc63f8d4e0?unit=1&lesson=0&lessonId=200)
+      if (fullHash.includes('course-player') || fullHash.includes('course_player') || pathname.includes('course-player')) {
+        let courseId = '';
+        let search = window.location.search;
+
+        if (pathname.includes('course-player/')) {
+          const parts = pathname.split('course-player/');
+          if (parts[1]) {
+            courseId = parts[1].split('/')[0].split('?')[0];
+          }
+        }
+
+        if (!courseId && fullHash.includes('?')) {
+          search = fullHash.substring(fullHash.indexOf('?'));
+        }
+
+        const params = new URLSearchParams(search);
+        if (!courseId) {
+          courseId = params.get('courseId') || params.get('course') || '';
+        }
+        const unit = params.get('unit') ? parseInt(params.get('unit')!, 10) : 0;
+        const lesson = params.get('lesson') ? parseInt(params.get('lesson')!, 10) : 0;
+        const lessonId = params.get('lessonId') || undefined;
+
+        if (courseId) {
+          setCoursePlayerParams({ courseId, unit, lesson, lessonId });
+          setCurrentView('course_player');
+          return;
+        }
+      }
+
+      const hash = fullHash.split('?')[0];
+      if (hash && ['home', 'courses', 'about', 'contact', 'faq', 'privacy', 'terms', 'student_dashboard', 'master_dashboard'].includes(hash)) {
+        setCurrentView(hash);
       }
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    parseHashAndUrl();
+    window.addEventListener('hashchange', parseHashAndUrl);
+    window.addEventListener('popstate', parseHashAndUrl);
+    return () => {
+      window.removeEventListener('hashchange', parseHashAndUrl);
+      window.removeEventListener('popstate', parseHashAndUrl);
+    };
   }, []);
 
   // Update html class and localStorage when darkMode changes
@@ -331,6 +373,38 @@ export default function App() {
               {currentView === 'contact' && <ContactView addToast={addToast} />}
               {currentView === 'privacy' && <PrivacyView />}
               {currentView === 'terms' && <TermsView />}
+              {currentView === 'course_player' && coursePlayerParams && (
+                userProfile ? (
+                  <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4">
+                    <CoursePlayer
+                      courseId={coursePlayerParams.courseId}
+                      initialUnitIndex={coursePlayerParams.unit ?? 0}
+                      initialLessonIndex={coursePlayerParams.lesson ?? 0}
+                      initialLessonId={coursePlayerParams.lessonId}
+                      userProfile={userProfile}
+                      addToast={addToast}
+                      onBack={() => {
+                        setCurrentView('student_dashboard');
+                        window.location.hash = 'student_dashboard';
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="py-20 text-center max-w-lg mx-auto px-4" dir="rtl">
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-950/50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Play className="w-8 h-8 fill-current" />
+                    </div>
+                    <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mb-2">مشغل الكورس - مستر عبدالله سيد</h2>
+                    <p className="text-slate-500 text-sm mb-6">يرجى تسجيل الدخول أولاً للوصول إلى الحصة ومتابعة الشرح التفاعلي والمذكرات.</p>
+                    <button
+                      onClick={() => setAuthModalOpen(true)}
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all cursor-pointer"
+                    >
+                      تسجيل الدخول للمشاهدة
+                    </button>
+                  </div>
+                )
+              )}
               {currentView === 'student_dashboard' && userProfile && (
                 <StudentDashboard
                   userProfile={userProfile}

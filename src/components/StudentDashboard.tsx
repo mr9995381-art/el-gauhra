@@ -50,9 +50,11 @@ import {
   UserCheck,
   Clock,
   Send,
-  ShieldAlert
+  ShieldAlert,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import CoursePlayer from './CoursePlayer';
 
 interface StudentDashboardProps {
   userProfile: UserProfile;
@@ -66,8 +68,8 @@ export default function StudentDashboard({
   addToast,
 }: StudentDashboardProps) {
   // Navigation inside student dashboard
-  // 'courses' | 'course_detail' | 'lesson_detail' | 'test_view' | 'results_history' | 'feed' | 'memorandums' | 'subscription'
-  const [subView, setSubView] = useState<'courses' | 'course_detail' | 'lesson_detail' | 'test_view' | 'results_history' | 'feed' | 'memorandums' | 'subscription'>('courses');
+  // 'courses' | 'course_detail' | 'lesson_detail' | 'course_player' | 'test_view' | 'results_history' | 'feed' | 'memorandums' | 'subscription'
+  const [subView, setSubView] = useState<'courses' | 'course_detail' | 'lesson_detail' | 'course_player' | 'test_view' | 'results_history' | 'feed' | 'memorandums' | 'subscription'>('courses');
 
   // Announcements (Feed) states
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -504,24 +506,7 @@ export default function StudentDashboard({
   // Open lesson details
   const handleOpenLesson = async (lesson: Lesson) => {
     setSelectedLesson(lesson);
-    setTest(null);
-    setTestAnswers({});
-    setTestScore(null);
-
-    // Fetch tests for this lesson
-    try {
-      const snap = await getDocs(
-        query(collection(db, 'tests'), where('lessonId', '==', lesson.id))
-      );
-      if (!snap.empty) {
-        const testDoc = snap.docs[0];
-        setTest({ id: testDoc.id, ...testDoc.data() } as Test);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-
-    setSubView('lesson_detail');
+    setSubView('course_player');
   };
 
   // Submit interactive test
@@ -823,6 +808,30 @@ export default function StudentDashboard({
               العودة لكافة الكورسات
             </button>
 
+            {/* Course Player Banner */}
+            <div className="bg-gradient-to-l from-slate-900 via-blue-950 to-slate-900 border border-blue-500/30 p-6 rounded-3xl shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-white">
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-500/20 text-blue-300 text-xs font-bold rounded-full border border-blue-500/30">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>مشغل مستر عبدالله سيد التفاعلي</span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-black">{selectedCourse.title}</h3>
+                <p className="text-xs text-slate-300 max-w-xl">
+                  استمتع بتجربة مشغل الحصة التفاعلي الكامل: مشاهدة الشرح، علامة الأمان المائية، حل الواجبات، تحميل المذكرات، ومناقشة المستر.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedLesson(lessons[0] || null);
+                  setSubView('course_player');
+                }}
+                className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg transition-all flex items-center gap-2 cursor-pointer shrink-0"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                <span>تشغيل الحصة في المشغل</span>
+              </button>
+            </div>
+
             <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-md">
               <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">{selectedCourse.title}</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">{selectedCourse.description}</p>
@@ -884,7 +893,7 @@ export default function StudentDashboard({
                                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow transition-all flex items-center gap-1 cursor-pointer"
                                   >
                                     <Play className="w-3.5 h-3.5 fill-current" />
-                                    عرض الدرس والشرح
+                                    عرض في مشغل الحصة
                                   </button>
                                 </div>
                               </div>
@@ -900,232 +909,25 @@ export default function StudentDashboard({
           </div>
         )}
 
-        {/* VIEW 3: Lesson Details & Video & Test */}
-        {subView === 'lesson_detail' && selectedLesson && selectedCourse && (
-          <div className="space-y-6">
+        {/* VIEW 3: Nahj Al-Azhar Course Player View */}
+        {(subView === 'course_player' || subView === 'lesson_detail') && selectedCourse && (
+          <div className="space-y-4">
             <button
               onClick={() => setSubView('course_detail')}
-              className="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline outline-none"
+              className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline outline-none py-1"
             >
               <ArrowRight className="w-4 h-4" />
-              العودة للوحدات والدروس
+              العودة إلى فهرس وحدات الكورس
             </button>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left 2 Cols: Video and PDF info */}
-              <div className="lg:col-span-2 space-y-6">
-                
-                {/* Embedded Video Card */}
-                <div className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-md overflow-hidden">
-                  <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-blue-600 text-white">
-                    <div>
-                      <h2 className="font-extrabold text-base sm:text-lg leading-tight">{selectedLesson.title}</h2>
-                      <p className="text-xs text-blue-200 mt-1">كورس: {selectedCourse.title}</p>
-                    </div>
-                    {/* Lesson progress check */}
-                    <button
-                      onClick={() => toggleLessonComplete(selectedLesson.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                        completedLessonIds.includes(selectedLesson.id)
-                          ? 'bg-emerald-500 border-emerald-400 text-white'
-                          : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'
-                      }`}
-                    >
-                      <Check className="w-4 h-4" />
-                      <span>{completedLessonIds.includes(selectedLesson.id) ? 'مكتمل' : 'أكملت الدرس؟'}</span>
-                    </button>
-                  </div>
-
-                  {/* YouTube Embed Player */}
-                  {getYouTubeId(selectedLesson.youtubeUrl) ? (
-                    <div className="aspect-video w-full bg-black relative">
-                      <iframe
-                        src={`https://www.youtube.com/embed/${getYouTubeId(selectedLesson.youtubeUrl)}`}
-                        title="YouTube video player"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                        className="absolute inset-0 w-full h-full"
-                      ></iframe>
-                    </div>
-                  ) : (
-                    <div className="p-12 text-center text-slate-400 bg-slate-900/10 border-b min-h-64 flex flex-col justify-center items-center gap-2">
-                      <AlertCircle className="w-12 h-12 text-blue-600" />
-                      <p className="text-sm font-bold">لا يوجد فيديو صالح للتشغيل أو الرابط غير صالح.</p>
-                      <p className="text-xs text-slate-500">رابط المستر: {selectedLesson.youtubeUrl}</p>
-                    </div>
-                  )}
-
-                  <div className="p-6 space-y-4">
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">وصف الدرس وتفاصيل الشرح:</h3>
-                    <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed whitespace-pre-line">
-                      {selectedLesson.description}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Attachments / Worksheets Card */}
-                <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-md">
-                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base mb-4">الملفات والمذكرات المرفقة بالدرس:</h3>
-                  {selectedLesson.attachments && selectedLesson.attachments.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {selectedLesson.attachments.map((attach, idx) => (
-                        <div
-                          key={idx}
-                          className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-4"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-100 dark:bg-blue-950/20 text-blue-600 rounded-lg shrink-0">
-                              <FileText className="w-5 h-5" />
-                            </div>
-                            <div className="text-right">
-                              <h4 className="font-bold text-xs text-slate-800 dark:text-slate-100 line-clamp-1">{attach.name}</h4>
-                              <p className="text-[10px] text-slate-400 mt-0.5 uppercase">{attach.type}</p>
-                            </div>
-                          </div>
-                          <a
-                            href={attach.url}
-                            target="_blank"
-                            referrerPolicy="no-referrer"
-                            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-all shrink-0 cursor-pointer"
-                            title="تحميل الملف"
-                          >
-                            <Download className="w-4 h-4" />
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-slate-400 text-xs text-center py-6">لا توجد ملفات مرفقة بهذا الدرس حالياً.</p>
-                  )}
-                </div>
-
-              </div>
-
-              {/* Right 1 Col: Test Solving Card */}
-              <div className="space-y-6">
-                <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-md">
-                  <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <HelpCircle className="w-6 h-6 text-blue-600" />
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">اختبار تفاعلي على الدرس</h3>
-                  </div>
-
-                  {!test ? (
-                    <p className="text-slate-400 text-xs text-center py-8">لا يوجد اختبار متاح لهذا الدرس حالياً.</p>
-                  ) : testScore !== null ? (
-                    /* Score Show card */
-                    <div className="text-center py-6 space-y-4">
-                      <div className="w-20 h-20 bg-blue-50 dark:bg-blue-950/20 rounded-full flex items-center justify-center mx-auto text-blue-600 shadow-inner">
-                        <Award className="w-10 h-10" />
-                      </div>
-                      <h4 className="font-bold text-lg text-slate-800 dark:text-slate-100">تهانينا! لقد أتممت الاختبار</h4>
-                      <div className="text-3xl font-black text-blue-600">
-                        {testScore} / {test.questions.length}
-                      </div>
-                      <p className="text-xs text-slate-400">تم تصحيح الاختبار وحفظ نتيجتك بنجاح.</p>
-                      <button
-                        onClick={() => { setTestScore(null); setTestAnswers({}); }}
-                        className="flex items-center gap-1 mx-auto text-xs text-blue-600 hover:underline mt-2 font-bold cursor-pointer"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        إعادة المحاولة
-                      </button>
-                    </div>
-                  ) : (
-                    /* Solve Form */
-                    <form onSubmit={handleSubmitTest} className="space-y-6">
-                      <div className="space-y-5 max-h-[500px] overflow-y-auto pr-2">
-                        {test.questions.map((q, qIdx) => (
-                          <div key={q.id} className="space-y-3 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                            <div className="flex gap-1.5 text-xs text-slate-400">
-                              <span>سؤال {qIdx + 1} -</span>
-                              <span>{q.type === 'mcq' ? 'اختيار من متعدد' : q.type === 'true_false' ? 'صح أو خطأ' : 'أكمل الفراغ'}</span>
-                            </div>
-                            <p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{q.text}</p>
-                            
-                            {/* Type 1: MCQ */}
-                            {q.type === 'mcq' && (
-                              <div className="grid grid-cols-1 gap-2">
-                                {q.options.map((opt, optIdx) => (
-                                  <label
-                                    key={optIdx}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs cursor-pointer transition-all ${
-                                      testAnswers[q.id] === opt
-                                        ? 'bg-blue-50/50 dark:bg-blue-950/20 border-blue-500/50 text-blue-600 dark:text-blue-400 font-bold'
-                                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100/50 dark:hover:bg-slate-900/30'
-                                    }`}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name={q.id}
-                                      value={opt}
-                                      checked={testAnswers[q.id] === opt}
-                                      onChange={() => setTestAnswers({ ...testAnswers, [q.id]: opt })}
-                                      className="sr-only"
-                                    />
-                                    <span>{opt}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Type 2: True/False */}
-                            {q.type === 'true_false' && (
-                              <div className="grid grid-cols-2 gap-2">
-                                {['صح', 'خطأ'].map((opt) => (
-                                  <label
-                                    key={opt}
-                                    className={`flex items-center justify-center gap-1 py-2 rounded-xl border text-xs cursor-pointer transition-all ${
-                                      testAnswers[q.id] === opt
-                                        ? 'bg-blue-50/50 dark:bg-blue-950/20 border-blue-500/50 text-blue-600 dark:text-blue-400 font-bold'
-                                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100/50 dark:hover:bg-slate-900/30'
-                                    }`}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name={q.id}
-                                      value={opt}
-                                      checked={testAnswers[q.id] === opt}
-                                      onChange={() => setTestAnswers({ ...testAnswers, [q.id]: opt })}
-                                      className="sr-only"
-                                    />
-                                    <span>{opt}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Type 3: Fill Blanks */}
-                            {q.type === 'complete' && (
-                              <input
-                                type="text"
-                                value={testAnswers[q.id] || ''}
-                                onChange={(e) => setTestAnswers({ ...testAnswers, [q.id]: e.target.value })}
-                                placeholder="اكتب الإجابة الصحيحة بالإنجليزية"
-                                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs focus:ring-2 focus:ring-blue-500 outline-none text-left"
-                              />
-                            )}
-
-                          </div>
-                        ))}
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={submittingTest}
-                        className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                      >
-                        {submittingTest ? (
-                          <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                        ) : (
-                          'إرسال الإجابات والتصحيح'
-                        )}
-                      </button>
-                    </form>
-                  )}
-                </div>
-              </div>
-
+            <div className="rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950">
+              <CoursePlayer
+                courseId={selectedCourse.id}
+                initialLessonId={selectedLesson?.id}
+                userProfile={userProfile}
+                addToast={addToast}
+                onBack={() => setSubView('course_detail')}
+              />
             </div>
           </div>
         )}

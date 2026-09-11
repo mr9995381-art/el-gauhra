@@ -24,18 +24,18 @@ export default function Footer({ setCurrentView }: FooterProps) {
           {/* Section 1: About */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-700 to-indigo-950 border border-blue-400/30 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md">
                 AS
               </div>
-              <span className="font-bold text-xl text-white">{t('footer_platform_name')}</span>
+              <span className="font-bold text-xl text-white">منصة مستر عبدالله سيد للغة الإنجليزية</span>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed mb-6">
-              {t('footer_desc')}
+              المنظومة التعليمية المتخصصة لطلاب المرحلة الإعدادية والثانوية مع خبير أول اللغة الإنجليزية مستر عبدالله سيد. كبسولات الجرامر، بنك الأسئلة، مهارات الترجمة والمقال، وسلسلة مذكرات The Master.
             </p>
-            {/* Warning Message inside footer */}
-            <div className="p-4 bg-slate-800/80 border border-slate-700/60 rounded-xl text-xs text-amber-400 leading-relaxed">
-              {isRtl ? 'إذا واجهت أي مشكلة أو أردت تجديد الاشتراك، تواصل مع مستر عبدالله سيد على الرقم ' : 'If you face any issues or want to renew subscription, contact Mr. Abdullah Sayed at '}
-              <a href={`tel:${phone}`} className="font-bold underline hover:text-amber-300 whitespace-nowrap">
+            {/* Support Message inside footer */}
+            <div className="p-4 bg-slate-800/80 border border-blue-500/30 rounded-xl text-xs text-blue-300 leading-relaxed">
+              {isRtl ? 'إذا واجهت أي استفسار أو أردت تفعيل كود الاشتراك أو حجز الكورسات والمذكرات، تواصل معنا مباشرة: ' : 'For inquiries, course booking, or code activation, contact Mr. Abdullah Sayed support directly: '}
+              <a href={`tel:${phone}`} className="font-bold underline text-amber-300 hover:text-amber-200 whitespace-nowrap dir-ltr">
                 {displayPhone}
               </a>
             </div>
