@@ -14,11 +14,11 @@ import TermsView from './components/TermsView';
 import StudentDashboard from './components/StudentDashboard';
 import MasterDashboard from './components/MasterDashboard';
 import AuthModal from './components/AuthModal';
-import MasterPasscodeModal from './components/MasterPasscodeModal';
 import { StudentOnboardingModal } from './components/StudentOnboardingModal';
 import ToastContainer, { Toast } from './components/NotificationToast';
 import CoursePlayer from './components/CoursePlayer';
-import { Bell, AlertTriangle, Phone, HelpCircle, Lock, Play } from 'lucide-react';
+import ParentPortalView from './components/ParentPortalView';
+import { Bell, AlertTriangle, Phone, HelpCircle, Lock, Play, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { seedInitialDataIfEmpty } from './lib/seeder';
 
@@ -26,7 +26,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<string>('home');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [masterModalOpen, setMasterModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [darkMode, setDarkMode] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [loadingAuth, setLoadingAuth] = useState(true);
@@ -263,13 +263,15 @@ export default function App() {
         return;
       }
       if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'master')) {
-        setMasterModalOpen(true);
+        setAuthModalMode('login');
+        setAuthModalOpen(true);
         return;
       }
     }
     if (view === 'student_dashboard') {
       if (!userProfile) {
         addToast('يرجى تسجيل الدخول أولاً للوصول إلى هذه الصفحة.', 'info');
+        setAuthModalMode('login');
         setAuthModalOpen(true);
         return;
       }
@@ -300,10 +302,12 @@ export default function App() {
         setCurrentView={navigateTo}
         userProfile={userProfile}
         onLogout={handleLogout}
-        onOpenAuth={() => setAuthModalOpen(true)}
+        onOpenAuth={(mode?: 'login' | 'register') => {
+          setAuthModalMode(mode || 'login');
+          setAuthModalOpen(true);
+        }}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
-        onOpenMasterAccess={() => setMasterModalOpen(true)}
       />
 
       {/* Main Content Stage */}
@@ -336,9 +340,11 @@ export default function App() {
               {currentView === 'home' && (
                 <HomeView
                   userProfile={userProfile}
-                  onOpenAuth={() => setAuthModalOpen(true)}
+                  onOpenAuth={() => {
+                    setAuthModalMode('register');
+                    setAuthModalOpen(true);
+                  }}
                   setCurrentView={navigateTo}
-                  onOpenMasterAccess={() => setMasterModalOpen(true)}
                 />
               )}
               {currentView === 'about' && <AboutView />}
@@ -368,6 +374,9 @@ export default function App() {
                     </div>
                   </div>
                 )
+              )}
+              {currentView === 'parent_portal' && (
+                <ParentPortalView onOpenAuth={() => setAuthModalOpen(true)} />
               )}
               {currentView === 'faq' && <FAQView />}
               {currentView === 'contact' && <ContactView addToast={addToast} />}
@@ -417,16 +426,19 @@ export default function App() {
                   <MasterDashboard userProfile={userProfile} addToast={addToast} />
                 ) : (
                   <div className="py-20 text-center max-w-lg mx-auto px-4" dir="rtl">
-                    <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-950/50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Lock className="w-8 h-8" />
                     </div>
-                    <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mb-2">لوحة تحكم مستر عبدالله سيد</h2>
-                    <p className="text-slate-500 text-sm mb-6">يرجى إدخال رمز القفل الخاص بالإدارة لمتابعة الدخول وإدارة المنصة.</p>
+                    <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 mb-2">لوحة التحكم</h2>
+                    <p className="text-slate-500 text-sm mb-6">يرجى تسجيل الدخول للوصول إلى لوحة التحكم.</p>
                     <button
-                      onClick={() => setMasterModalOpen(true)}
-                      className="px-6 py-3 bg-slate-900 hover:bg-black text-amber-400 font-extrabold rounded-full shadow-lg transition-all cursor-pointer"
+                      onClick={() => {
+                        setAuthModalMode('login');
+                        setAuthModalOpen(true);
+                      }}
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg transition-all cursor-pointer inline-flex items-center gap-2"
                     >
-                      إدخال كلمة المرور (2026)
+                      <span>تسجيل الدخول</span>
                     </button>
                   </div>
                 )
@@ -455,11 +467,12 @@ export default function App() {
       {/* Footer component */}
       <Footer setCurrentView={navigateTo} />
 
-      {/* Custom Auth modal */}
+      {/* Unified Auth modal */}
       <AnimatePresence>
         {authModalOpen && (
           <AuthModal
             isOpen={authModalOpen}
+            initialMode={authModalMode}
             onClose={() => setAuthModalOpen(false)}
             onSuccess={(profile) => {
               setUserProfile(profile);
@@ -470,24 +483,6 @@ export default function App() {
                 setCurrentView('student_dashboard');
                 window.location.hash = 'student_dashboard';
               }
-            }}
-            addToast={addToast}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Master Passcode Modal */}
-      <AnimatePresence>
-        {masterModalOpen && (
-          <MasterPasscodeModal
-            isOpen={masterModalOpen}
-            onClose={() => setMasterModalOpen(false)}
-            userProfile={userProfile}
-            onSuccess={(updatedProfile) => {
-              if (updatedProfile) {
-                setUserProfile(updatedProfile);
-              }
-              setCurrentView('master_dashboard');
             }}
             addToast={addToast}
           />

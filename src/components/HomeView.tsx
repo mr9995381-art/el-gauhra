@@ -9,12 +9,12 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { useLanguage } from '../lib/LanguageContext';
+import ParentPortalView from './ParentPortalView';
 
 interface HomeViewProps {
   userProfile: UserProfile | null;
   onOpenAuth: () => void;
   setCurrentView: (view: string) => void;
-  onOpenMasterAccess?: () => void;
 }
 
 export default function HomeView({ userProfile, onOpenAuth, setCurrentView }: HomeViewProps) {
@@ -24,36 +24,9 @@ export default function HomeView({ userProfile, onOpenAuth, setCurrentView }: Ho
 
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [activeStageTab, setActiveStageTab] = useState<'secondary' | 'prep'>('secondary');
-  const [parentSearchQuery, setParentSearchQuery] = useState('');
-  const [parentSearchResult, setParentSearchResult] = useState<null | {
-    studentName: string;
-    grade: string;
-    attendanceRate: number;
-    lastExamScore: string;
-    status: string;
-    teacherNotes: string;
-  }>(null);
-  const [isSearchingParent, setIsSearchingParent] = useState(false);
 
   const toggleFaq = (index: number) => {
     setOpenFaqIndex(openFaqIndex === index ? null : index);
-  };
-
-  const handleParentSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!parentSearchQuery.trim()) return;
-    setIsSearchingParent(true);
-    setTimeout(() => {
-      setIsSearchingParent(false);
-      setParentSearchResult({
-        studentName: parentSearchQuery.length > 6 ? 'أحمد محمد حسني' : 'طالب متميز في اللغة الإنجليزية',
-        grade: 'الصف الثالث الثانوي (English Master Course)',
-        attendanceRate: 98,
-        lastExamScore: '49.5 / 50 (امتحان شامل على Grammar & Vocab Units 1-6)',
-        status: 'مستمر ومؤهل للدرجة النهائية (Full Mark)',
-        teacherNotes: 'مستوى استثنائي في حل أسئلة الترجمة والقطع المتحررة وفهم الفروق الدقيقة في الجرامر، ومواظب على أداء الواجبات والتصحيح الأسبوعي مع مستر عبدالله.',
-      });
-    }, 450);
   };
 
   // Secondary English Modules
@@ -584,94 +557,9 @@ export default function HomeView({ userProfile, onOpenAuth, setCurrentView }: Ho
         )}
       </section>
 
-      {/* 3. Parent Tracking Portal (بوابة متابعة ولي الأمر) */}
-      <section id="parent-tracking-section" className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white rounded-[32px] sm:rounded-[40px] p-6 sm:p-10 md:p-12 border border-blue-500/40 shadow-2xl">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            
-            <div className="lg:col-span-6 space-y-4 text-start">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-400/20 text-amber-300 rounded-full text-xs font-extrabold border border-amber-400/30">
-                <ShieldCheck className="w-4 h-4 text-amber-400" />
-                <span>شريك النجاح والتفوق</span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black">
-                بوابة متابعة ولي الأمر الفورية
-              </h2>
-              <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-                متابعة ولي الأمر هي الركيزة الأساسية لتفوق الطالب في اللغة الإنجليزية. أدخل رقم هاتف الطالب المسجل لدينا للاطلاع الفوري على نسب مشاهدة المحاضرات، نتائج امتحانات الجرامر والترجمة، وملاحظات مستر عبدالله سيد.
-              </p>
-
-              <form onSubmit={handleParentSearch} className="space-y-3 pt-2">
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <div className="relative flex-1">
-                    <Search className="w-5 h-5 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={parentSearchQuery}
-                      onChange={(e) => setParentSearchQuery(e.target.value)}
-                      placeholder="أدخل رقم هاتف الطالب أو ولي الأمر..."
-                      className="w-full pr-11 pl-4 py-3.5 bg-slate-800/90 border border-slate-700 rounded-2xl text-white text-sm placeholder-slate-400 focus:outline-none focus:border-blue-400"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isSearchingParent}
-                    className="px-6 py-3.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black rounded-2xl text-sm transition-all shadow-lg cursor-pointer whitespace-nowrap"
-                  >
-                    {isSearchingParent ? 'جاري الاستعلام...' : 'استعلام عن مستوى الطالب'}
-                  </button>
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  * أدخل رقم الهاتف أو اضغط "استعلام عن مستوى الطالب" لمعاينة التقرير النموذجي.
-                </p>
-              </form>
-            </div>
-
-            {/* Live Result Card */}
-            <div className="lg:col-span-6">
-              {parentSearchResult ? (
-                <div className="bg-slate-800/90 border border-blue-500/40 rounded-3xl p-6 space-y-4 shadow-xl">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-700">
-                    <div>
-                      <h4 className="font-black text-white text-base">{parentSearchResult.studentName}</h4>
-                      <p className="text-xs text-amber-300">{parentSearchResult.grade}</p>
-                    </div>
-                    <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-full text-xs font-bold">
-                      {parentSearchResult.status}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-700">
-                      <span className="text-[11px] text-slate-400 block">نسبة الحضور والالتزام:</span>
-                      <span className="text-xl font-black text-amber-300">{parentSearchResult.attendanceRate}%</span>
-                    </div>
-                    <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-700">
-                      <span className="text-[11px] text-slate-400 block">درجة آخر امتحان شامل:</span>
-                      <span className="text-sm font-black text-emerald-300">{parentSearchResult.lastExamScore}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-900/40 p-3.5 rounded-2xl border border-slate-700 text-xs leading-relaxed text-slate-200">
-                    <span className="font-bold text-amber-300 block mb-1">ملاحظة مستر عبدالله سيد:</span>
-                    "{parentSearchResult.teacherNotes}"
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-slate-800/40 border border-dashed border-slate-700 rounded-3xl p-8 text-center space-y-3">
-                  <div className="w-14 h-14 bg-slate-800 text-blue-400 rounded-2xl flex items-center justify-center mx-auto">
-                    <ShieldCheck className="w-8 h-8" />
-                  </div>
-                  <h4 className="font-extrabold text-white text-base">تقرير أداء الطالب في الإنجليزي</h4>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    أدخل رقم الهاتف في الحقل المقابل لتفقد إحصائيات حضور المحاضرات، درجات كويزات الجرامر، وملاحظات مستر عبدالله.
-                  </p>
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
+      {/* 3. Parent Tracking Portal (بوابة متابعة ولي الأمر الحقيقية) */}
+      <section className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <ParentPortalView embedded={true} onOpenAuth={onOpenAuth} />
       </section>
 
       {/* 4. Booklets & Memorandums (سلسلة مذكرات The Master) */}

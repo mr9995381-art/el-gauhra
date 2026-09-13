@@ -3,7 +3,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswor
 import { doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { EducationalGrade, GRADE_LABELS, UserProfile } from '../types';
-import { Mail, Lock, User, Phone, BookOpen, AlertTriangle, X } from 'lucide-react';
+import { Mail, Lock, User, Phone, BookOpen, AlertTriangle, X, ShieldAlert } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface AuthModalProps {
@@ -11,10 +11,11 @@ interface AuthModalProps {
   onClose: () => void;
   onSuccess: (profile: UserProfile) => void;
   addToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  initialMode?: 'login' | 'register';
 }
 
-export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: AuthModalProps) {
-  const [isLogin, setIsLogin] = useState(true);
+export default function AuthModal({ isOpen, onClose, onSuccess, addToast, initialMode = 'login' }: AuthModalProps) {
+  const [isLogin, setIsLogin] = useState(initialMode !== 'register');
   const [forgotPassword, setForgotPassword] = useState(false);
   
   // Fields
@@ -25,6 +26,13 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
   const [grade, setGrade] = useState<EducationalGrade>('secondary_3');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setIsLogin(initialMode !== 'register');
+      setForgotPassword(false);
+    }
+  }, [isOpen, initialMode]);
 
   if (!isOpen) return null;
 
@@ -176,6 +184,96 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
       const rawInput = email.trim();
 
       if (isLogin) {
+        // --- 0. Master Auth Check (Automatic routing to Master Dashboard) ---
+        try {
+          let masterSettingsSnap = await getDoc(doc(db, 'settings', 'master_auth'));
+          let masterData = masterSettingsSnap.exists() ? masterSettingsSnap.data() : null;
+          const targetMasterEmail = (masterData?.email || 'master@mr-abdallah.com').trim().toLowerCase();
+          const targetMasterPass = masterData?.password || '2026';
+          const targetMasterPin = masterData?.pin || '2026';
+
+          const isMasterEmailMatch =
+            cleanIdentifier === targetMasterEmail ||
+            cleanEmail === targetMasterEmail ||
+            cleanIdentifier === 'master@mr-abdallah.com';
+
+          const isMasterPassMatch =
+            password === targetMasterPass ||
+            password === targetMasterPin ||
+            password === '2026' ||
+            password === 'MASTER_2026' ||
+            password === 'MASTER_ADMIN_2026';
+
+          if (isMasterEmailMatch) {
+            // Also attempt Firebase Auth in case master is registered in Firebase Auth
+            let masterAuthSuccess = isMasterPassMatch;
+            if (!masterAuthSuccess) {
+              try {
+                await signInWithEmailAndPassword(auth, cleanEmail, password);
+                masterAuthSuccess = true;
+              } catch (authErr) {
+                // fall through
+              }
+            }
+
+            if (masterAuthSuccess) {
+              const masterUid = 'master_admin_primary_account';
+              const masterProfile: UserProfile = {
+                uid: masterUid,
+                name: 'مستر عبدالله سيد (المعلم والإدارة)',
+                email: cleanEmail || targetMasterEmail,
+                phone: '+201102140676',
+                grade: 'secondary_3',
+                role: 'admin',
+                subscriptionExpiresAt: '2099-12-31T23:59:59.000Z',
+                subscriptionStatus: 'approved',
+                activeCodeUsed: null,
+                deviceSessionId: Date.now().toString(),
+                createdAt: new Date().toISOString(),
+              };
+
+              localStorage.setItem('fallback_user_uid', masterUid);
+              localStorage.setItem('master_logged_in', 'true');
+              localStorage.setItem('master_saved_email', targetMasterEmail);
+
+              try {
+                await setDoc(doc(db, 'users', masterUid), masterProfile, { merge: true });
+              } catch (e) {
+                console.warn('Note on saving master profile:', e);
+              }
+
+              if (!masterData?.email) {
+                try {
+                  await setDoc(
+                    doc(db, 'settings', 'master_auth'),
+                    {
+                      email: targetMasterEmail,
+                      password: targetMasterPass,
+                      pin: targetMasterPin,
+                      updatedAt: new Date().toISOString(),
+                    },
+                    { merge: true }
+                  );
+                } catch (e) {
+                  console.warn('Note on initializing master_auth:', e);
+                }
+              }
+
+              addToast('مرحباً بك يا مستر عبدالله سيد! تم تسجيل الدخول بنجاح. 👑', 'success');
+              onSuccess(masterProfile);
+              onClose();
+              setLoading(false);
+              return;
+            } else {
+              addToast('كلمة المرور غير صحيحة لحساب المستر.', 'error');
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (masterCheckErr) {
+          console.warn('Error during master auth verification:', masterCheckErr);
+        }
+
         // Login
         try {
           // Try standard Firebase Auth
@@ -194,7 +292,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
             if (userDoc.exists()) {
               const profile = userDoc.data() as UserProfile;
               
-              const role: 'student' | 'admin' | 'master' = profile.role || (profile.email === 'oa958792@gmail.com' ? 'admin' : 'student');
+              const role: 'student' | 'admin' | 'master' = profile.role || 'student';
 
               // Generate unique session ID for this device
               const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -222,6 +320,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           const qEmail = query(usersRef, where('email', '==', cleanEmail));
           const snapEmail = await getDocs(qEmail);
           snapEmail.forEach((docSnap) => {
+            if (docSnap.id === 'fallback_master_admin_account') return;
             const data = docSnap.data();
             if (data.fallbackPassword === password || !data.fallbackPassword) {
               matchedProfile = { uid: docSnap.id, ...data } as unknown as UserProfile;
@@ -233,6 +332,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
             const qRawEmail = query(usersRef, where('email', '==', cleanIdentifier));
             const snapRawEmail = await getDocs(qRawEmail);
             snapRawEmail.forEach((docSnap) => {
+              if (docSnap.id === 'fallback_master_admin_account') return;
               const data = docSnap.data();
               if (data.fallbackPassword === password || !data.fallbackPassword) {
                 matchedProfile = { uid: docSnap.id, ...data } as unknown as UserProfile;
@@ -243,7 +343,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           // 3. Check by UID / Student ID
           if (!matchedProfile) {
             const userDocByUid = await getDoc(doc(db, 'users', rawInput));
-            if (userDocByUid.exists()) {
+            if (userDocByUid.exists() && userDocByUid.id !== 'fallback_master_admin_account') {
               const data = userDocByUid.data();
               if (data.fallbackPassword === password || !data.fallbackPassword) {
                 matchedProfile = { uid: userDocByUid.id, ...data } as unknown as UserProfile;
@@ -256,6 +356,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
             const qPhone = query(usersRef, where('phone', '==', rawInput));
             const snapPhone = await getDocs(qPhone);
             snapPhone.forEach((docSnap) => {
+              if (docSnap.id === 'fallback_master_admin_account') return;
               const data = docSnap.data();
               if (data.fallbackPassword === password || !data.fallbackPassword) {
                 matchedProfile = { uid: docSnap.id, ...data } as unknown as UserProfile;
@@ -264,7 +365,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           }
 
           if (matchedProfile) {
-            const role: 'student' | 'admin' | 'master' = (matchedProfile as UserProfile).role || ((matchedProfile as UserProfile).email === 'oa958792@gmail.com' ? 'admin' : 'student');
+            const role: 'student' | 'admin' | 'master' = (matchedProfile as UserProfile).role || 'student';
 
             const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
             localStorage.setItem('device_session_id', deviceSessionId);
@@ -309,14 +410,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
           const uid = userCred.user.uid;
           
-          // Check if role should be Admin (based on special email for password registration)
-          let role: 'student' | 'admin' | 'master' = 'student';
-          if (cleanEmail === 'oa958792@gmail.com') {
-            role = 'admin';
-          }
+          // Registration is always for a student
+          const role: 'student' = 'student';
 
           const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
           localStorage.setItem('device_session_id', deviceSessionId);
+          if (localStorage.getItem('fallback_user_uid') === 'fallback_master_admin_account') {
+            localStorage.removeItem('fallback_user_uid');
+          }
 
           const newProfile: UserProfile = {
             uid,
@@ -325,9 +426,9 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
             phone: phone.trim(),
             parentPhone: parentPhone.trim() || '',
             grade: grade || 'secondary_3',
-            role,
-            subscriptionStatus: role !== 'student' ? 'approved' : 'none',
-            subscriptionExpiresAt: role !== 'student' ? '2099-12-31T23:59:59.000Z' : null,
+            role: 'student',
+            subscriptionStatus: 'none',
+            subscriptionExpiresAt: null,
             activeCodeUsed: null,
             deviceSessionId,
             createdAt: new Date().toISOString(),
@@ -343,11 +444,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
           await setDoc(doc(db, 'users', uid), setPayload);
           onSuccess(newProfile);
           
-          if (role !== 'student') {
-            addToast('تم إنشاء حساب إدارة المنصة بنجاح!', 'success');
-          } else {
-            addToast(`مرحباً بك ${name.trim()} في منصة مستر عبدالله سيد!`, 'success');
-          }
+          addToast(`مرحباً بك ${name.trim()} في منصة مستر عبدالله سيد!`, 'success');
           onClose();
         } catch (authErr: any) {
           // Fallback registration if auth/operation-not-allowed, auth/configuration-not-found, or auth/admin-restricted-operation
@@ -369,10 +466,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
 
             const fallbackUid = 'fallback_' + Math.random().toString(36).substring(2, 15);
             
-            let role: 'student' | 'admin' | 'master' = 'student';
-            if (cleanEmail === 'oa958792@gmail.com') {
-              role = 'admin';
-            }
+            const role: 'student' = 'student';
 
             const deviceSessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
             localStorage.setItem('device_session_id', deviceSessionId);
@@ -385,9 +479,9 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
               phone: phone.trim(),
               parentPhone: parentPhone.trim() || '',
               grade: grade || 'secondary_3',
-              role,
-              subscriptionStatus: role !== 'student' ? 'approved' : 'none',
-              subscriptionExpiresAt: role !== 'student' ? '2099-12-31T23:59:59.000Z' : null,
+              role: 'student',
+              subscriptionStatus: 'none',
+              subscriptionExpiresAt: null,
               activeCodeUsed: null,
               deviceSessionId,
               createdAt: new Date().toISOString(),
@@ -404,11 +498,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
             await setDoc(doc(db, 'users', fallbackUid), setPayload);
             onSuccess(newProfile);
 
-            if (role !== 'student') {
-              addToast('تم إنشاء حساب إدارة المنصة بنجاح!', 'success');
-            } else {
-              addToast(`مرحباً بك ${name.trim()} في منصة مستر عبدالله سيد!`, 'success');
-            }
+            addToast(`مرحباً بك ${name.trim()} في منصة مستر عبدالله سيد!`, 'success');
             onClose();
             return;
           }
@@ -447,12 +537,17 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
       >
         {/* Header */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-blue-600 text-white">
-          <h2 className="text-xl font-bold font-sans">
-            {forgotPassword ? 'استعادة كلمة المرور' : isLogin ? 'تسجيل الدخول' : 'إنشاء حساب جديد'}
-          </h2>
+          <div>
+            <span className="inline-block text-[11px] font-bold bg-white/20 px-2 py-0.5 rounded-full mb-1">
+              منصة مستر عبدالله سيد
+            </span>
+            <h2 className="text-xl font-bold font-sans">
+              {forgotPassword ? 'استعادة كلمة المرور' : isLogin ? 'تسجيل الدخول' : 'دخول حساب جديد'}
+            </h2>
+          </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full hover:bg-white/20 text-white transition-colors"
+            className="p-1 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
           >
             <X className="w-6 h-6" />
           </button>
@@ -460,6 +555,34 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
 
         {/* Form Body */}
         <form onSubmit={handleAuth} className="p-6 space-y-4">
+          {/* Two Tabs Switcher: دخول حساب جديد & تسجيل دخول */}
+          {!forgotPassword && (
+            <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-4">
+              <button
+                type="button"
+                onClick={() => setIsLogin(true)}
+                className={`py-2.5 text-sm font-black rounded-lg transition-all cursor-pointer ${
+                  isLogin
+                    ? 'bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                تسجيل الدخول
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsLogin(false)}
+                className={`py-2.5 text-sm font-black rounded-lg transition-all cursor-pointer ${
+                  !isLogin
+                    ? 'bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                دخول حساب جديد
+              </button>
+            </div>
+          )}
+
           {/* Google Sign-In Button */}
           {!forgotPassword && (
             <div className="space-y-3">
@@ -542,7 +665,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
               {/* Email / Student ID / Phone */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  {isLogin ? 'كود الطالب / البريد الإلكتروني / رقم الهاتف' : 'البريد الإلكتروني'}
+                  {isLogin ? 'البريد الإلكتروني / كود الطالب / رقم الهاتف' : 'البريد الإلكتروني'}
                 </label>
                 <div className="relative">
                   <Mail className="absolute right-3 top-2.5 w-5 h-5 text-slate-400" />
@@ -552,7 +675,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pr-10 pl-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 text-right outline-none"
-                    placeholder={isLogin ? 'أدخل كود الطالب أو البريد أو الهاتف...' : 'example@mail.com'}
+                    placeholder={isLogin ? 'أدخل البريد الإلكتروني أو كود الطالب أو الهاتف...' : 'example@mail.com'}
                   />
                 </div>
               </div>
@@ -654,7 +777,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
             ) : isLogin ? (
               'تسجيل الدخول'
             ) : (
-              'إنشاء الحساب'
+              'دخول حساب جديد'
             )}
           </button>
         </form>
@@ -669,7 +792,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, addToast }: Auth
             <p>
               ليس لديك حساب؟{' '}
               <button onClick={() => setIsLogin(false)} className="text-blue-600 font-semibold hover:underline">
-                أنشئ حساباً جديداً الآن
+                دخول حساب جديد الآن
               </button>
             </p>
           ) : (

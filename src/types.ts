@@ -47,6 +47,24 @@ export interface UserProfile {
   photoURL?: string;
   createdAt: string;
   isProfileComplete?: boolean;
+  teacherNotes?: string;
+  behaviorRating?: 'excellent' | 'very_good' | 'good' | 'needs_followup';
+  parentFollowupNotes?: string;
+}
+
+export interface StudentFollowupReport {
+  student: UserProfile;
+  attendanceRate: number;
+  completedLessonsCount: number;
+  totalLessonsCount: number;
+  testResults: TestResult[];
+  averageScore: number;
+  totalTestsCount: number;
+  passedCount: number;
+  lastTestResult?: TestResult;
+  teacherNotes: string;
+  behaviorRating: 'excellent' | 'very_good' | 'good' | 'needs_followup';
+  status: 'active' | 'inactive' | 'needs_followup';
 }
 
 export interface SubscriptionRequest {

@@ -10,10 +10,9 @@ interface NavbarProps {
   setCurrentView: (view: string) => void;
   userProfile: UserProfile | null;
   onLogout: () => void;
-  onOpenAuth: () => void;
+  onOpenAuth: (mode?: 'login' | 'register') => void;
   darkMode: boolean;
   setDarkMode: (dark: boolean) => void;
-  onOpenMasterAccess?: () => void;
 }
 
 export default function Navbar({
@@ -24,7 +23,6 @@ export default function Navbar({
   onOpenAuth,
   darkMode,
   setDarkMode,
-  onOpenMasterAccess,
 }: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { t, isRtl, lang } = useLanguage();
@@ -39,15 +37,8 @@ export default function Navbar({
   ];
 
   const handleNavClick = (view: string) => {
-    if (view === 'parent_portal') {
-      setCurrentView('home');
-      setTimeout(() => {
-        const el = document.getElementById('parent-tracking-section');
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    } else {
-      setCurrentView(view);
-    }
+    setCurrentView(view);
+    window.location.hash = view;
     setIsOpen(false);
   };
 
@@ -104,21 +95,17 @@ export default function Navbar({
               <LanguageSwitcher />
               <ThemeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
 
-              {/* Stealth Master Access */}
-              <button
-                onClick={() => {
-                  if (userProfile?.role === 'admin' || userProfile?.role === 'master') {
-                    handleNavClick('master_dashboard');
-                  } else if (onOpenMasterAccess) {
-                    onOpenMasterAccess();
-                  }
-                }}
-                className="p-2 text-slate-300 dark:text-slate-700 hover:text-amber-500 dark:hover:text-amber-400 transition-colors rounded-xl cursor-pointer opacity-50 hover:opacity-100"
-                title={t('nav_master_login')}
-                aria-label="Master Access"
-              >
-                <ShieldAlert className="w-4.5 h-4.5" />
-              </button>
+              {/* Master Access Quick Action when logged in as admin */}
+              {userProfile && (userProfile.role === 'admin' || userProfile.role === 'master') && (
+                <button
+                  onClick={() => handleNavClick('master_dashboard')}
+                  className="p-2 text-amber-500 hover:text-amber-400 transition-colors rounded-xl cursor-pointer"
+                  title="لوحة تحكم المستر"
+                  aria-label="Master Dashboard"
+                >
+                  <ShieldAlert className="w-5 h-5" />
+                </button>
+              )}
 
               {userProfile ? (
                 <div className="flex items-center gap-2 sm:gap-3">
@@ -166,16 +153,16 @@ export default function Navbar({
               ) : (
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={onOpenAuth}
-                    className="px-4 py-2 border-2 border-blue-700 dark:border-amber-400/60 text-blue-700 dark:text-amber-300 rounded-2xl font-bold text-xs hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all cursor-pointer"
+                    onClick={() => onOpenAuth('login')}
+                    className="px-4 py-2 border-2 border-blue-700 dark:border-blue-500 text-blue-700 dark:text-blue-300 rounded-2xl font-bold text-xs hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all cursor-pointer"
                   >
-                    دخول المنصة
+                    تسجيل الدخول
                   </button>
                   <button
-                    onClick={onOpenAuth}
-                    className="px-5 py-2.5 bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900 text-white rounded-2xl font-black text-xs shadow-md transition-all cursor-pointer"
+                    onClick={() => onOpenAuth('register')}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900 text-white rounded-2xl font-black text-xs shadow-md transition-all cursor-pointer"
                   >
-                    إنشاء حساب جديد
+                    دخول حساب جديد
                   </button>
                 </div>
               )}
@@ -213,34 +200,53 @@ export default function Navbar({
             <hr className="border-slate-200 dark:border-slate-800 my-2" />
             {userProfile ? (
               <div className="space-y-2 pt-2">
+                {(userProfile.role === 'admin' || userProfile.role === 'master') && (
+                  <button
+                    onClick={() => handleNavClick('master_dashboard')}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-amber-400 bg-slate-900 border border-amber-500/30 rounded-2xl cursor-pointer"
+                  >
+                    <ShieldAlert className="w-5 h-5 text-amber-400" />
+                    <span>لوحة تحكم المستر</span>
+                  </button>
+                )}
                 <button
-                  onClick={() => handleNavClick((userProfile.role === 'admin' || userProfile.role === 'master') ? 'master_dashboard' : 'student_dashboard')}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white bg-blue-700 rounded-2xl"
+                  onClick={() => handleNavClick('student_dashboard')}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white bg-blue-700 rounded-2xl cursor-pointer"
                 >
-                  {(userProfile.role === 'admin' || userProfile.role === 'master') ? <ShieldAlert className="w-5 h-5" /> : <User className="w-5 h-5" />}
-                  {(userProfile.role === 'admin' || userProfile.role === 'master') ? 'لوحة تحكم المستر' : 'الدخول إلى لوحة الطالب'}
+                  <User className="w-5 h-5" />
+                  <span>لوحة الطالب</span>
                 </button>
                 <button
                   onClick={() => {
                     onLogout();
                     setIsOpen(false);
                   }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-rose-600 border border-rose-100 dark:border-rose-950 bg-rose-50/50 dark:bg-rose-950/20 rounded-2xl"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-rose-600 border border-rose-100 dark:border-rose-950 bg-rose-50/50 dark:bg-rose-950/20 rounded-2xl cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
                   تسجيل الخروج
                 </button>
               </div>
             ) : (
-              <div className="space-y-2 pt-1">
+              <div className="space-y-2.5 pt-1">
                 <button
                   onClick={() => {
-                    onOpenAuth();
+                    onOpenAuth('login');
                     setIsOpen(false);
                   }}
-                  className="w-full py-3 text-center text-sm font-black text-white bg-gradient-to-r from-blue-700 to-blue-800 rounded-2xl shadow-lg cursor-pointer"
+                  className="w-full py-2.5 text-center text-sm font-bold text-blue-700 dark:text-blue-300 border-2 border-blue-700 dark:border-blue-500 rounded-2xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all cursor-pointer"
                 >
-                  تسجيل الدخول / إنشاء حساب جديد
+                  تسجيل الدخول
+                </button>
+
+                <button
+                  onClick={() => {
+                    onOpenAuth('register');
+                    setIsOpen(false);
+                  }}
+                  className="w-full py-3 text-center text-sm font-black text-white bg-gradient-to-r from-blue-700 to-blue-800 rounded-2xl shadow-lg transition-all cursor-pointer"
+                >
+                  دخول حساب جديد
                 </button>
               </div>
             )}

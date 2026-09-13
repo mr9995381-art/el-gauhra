@@ -17,5 +17,36 @@ export async function seedInitialDataIfEmpty() {
   } catch (err) {
     // Ignore permissions or non-existing doc errors during cleanup
   }
-}
 
+  // Clean up and permanently remove the demo student account and demo tests
+  try {
+    const sampleUid = 'student_sample_parent_demo';
+    const sampleUserRef = doc(db, 'users', sampleUid);
+    const userSnap = await getDoc(sampleUserRef);
+
+    if (userSnap.exists()) {
+      await deleteDoc(sampleUserRef);
+      await deleteDoc(doc(db, 'testResults', 'demo_test_1'));
+      await deleteDoc(doc(db, 'testResults', 'demo_test_2'));
+      await deleteDoc(doc(db, 'testResults', 'demo_test_3'));
+
+      for (let i = 1; i <= 6; i++) {
+        await deleteDoc(doc(db, 'studentProgress', `${sampleUid}_lesson_${i}`));
+      }
+      console.log('Removed demo student account and test records from Firestore.');
+    }
+  } catch (err) {
+    console.warn('Demo account cleanup note:', err);
+  }
+
+  // Ensure fallback_master_admin_account does not retain oa958792@gmail.com
+  try {
+    const masterAdminRef = doc(db, 'users', 'fallback_master_admin_account');
+    const masterAdminSnap = await getDoc(masterAdminRef);
+    if (masterAdminSnap.exists() && masterAdminSnap.data()?.email === 'oa958792@gmail.com') {
+      await deleteDoc(masterAdminRef);
+    }
+  } catch (err) {
+    // Ignore
+  }
+}
